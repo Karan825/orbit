@@ -1,0 +1,51 @@
+# WordPress container image
+image:
+  registry: registry-1.docker.io
+  repository: bitnami/wordpress
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# WordPress administrator account
+wordpressUsername: user
+wordpressPassword: ""
+wordpressEmail: user@example.com
+wordpressBlogName: Urumi Store
+wordpressHost: wordpress.local:8080
+# Keep the demo lightweight
+replicaCount: 1
+resourcesPreset: micro
+
+# Expose WordPress through the existing Traefik ingress controller
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  hostname: wordpress.local
+  path: /
+  pathType: Prefix
+  tls: false
+
+# Keep WordPress files when its Pod is replaced
+persistence:
+  enabled: true
+  size: 2Gi
+
+# Install MariaDB alongside WordPress
+mariadb:
+  enabled: true
+  architecture: standalone
+  auth:
+    rootPassword: ""
+    database: bitnami_wordpress
+    username: bn_wordpress
+    password: ""
+  primary:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resourcesPreset: micro
+wordpressExtraConfigContent: |
+  define('WP_HOME', 'http://wordpress.local:8080');
+  define('WP_SITEURL', 'http://wordpress.local:8080');
