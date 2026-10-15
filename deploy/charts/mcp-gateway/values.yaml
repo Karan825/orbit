@@ -11,7 +11,7 @@ gateway:
   replicaCount: 1
   image:
     repository: urumi/gateway
-    tag: dev-v7
+    tag: dev-v8
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -31,7 +31,7 @@ dashboard:
   replicaCount: 1
   image:
     repository: urumi/dashboard
-    tag: dev-v7
+    tag: dev-v8
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP

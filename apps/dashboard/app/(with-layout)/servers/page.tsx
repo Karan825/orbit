@@ -16,6 +16,7 @@ import {
   X as CloseIcon,
   Search as SearchIcon,
   Copy as CopyIcon,
+  Pencil as PencilIcon,
 } from 'lucide-react';
 
 export default function ServersPage() {
@@ -26,6 +27,7 @@ export default function ServersPage() {
   const [serverTools, setServerTools] = useState<McpTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingServer, setEditingServer] = useState<McpServer | null>(null);
   const [toolSearch, setToolSearch] = useState('');
   const [copiedTool, setCopiedTool] = useState<string | null>(null);
 
@@ -100,29 +102,72 @@ export default function ServersPage() {
     }
   };
 
-  const handleAddServer = async (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingServer(null);
+    setNewSlug('');
+    setNewName('');
+    setNewUrl('');
+    setNewAuthType('none');
+    setNewAuthHeader('');
+    setNewAuthToken('');
+    setTestResult(null);
+    setShowAddModal(true);
+  };
+
+  const handleOpenEdit = (server: McpServer) => {
+    setEditingServer(server);
+    setNewSlug(server.slug);
+    setNewName(server.name);
+    setNewUrl(server.url);
+    setNewAuthType((server.auth?.type as any) || 'none');
+    setNewAuthHeader(server.auth?.headerName || '');
+    setNewAuthToken('');
+    setTestResult(null);
+    setShowAddModal(true);
+  };
+
+  const handleToggleServer = async (slug: string, enabled: boolean) => {
+    try {
+      await api.toggleServer(slug, enabled);
+      await fetchServers();
+    } catch (e: any) {
+      alert(e.message || 'Failed to toggle server');
+    }
+  };
+
+  const handleSubmitServer = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.addServer({
-        slug: newSlug,
-        name: newName || newSlug,
-        url: newUrl,
-        auth: {
-          type: newAuthType,
-          headerName: newAuthType === 'header' ? newAuthHeader : undefined,
-          configured: !!newAuthToken,
-        },
-      });
+      if (editingServer) {
+        await api.updateServer(editingServer.id, {
+          name: newName || newSlug,
+          url: newUrl,
+          auth: {
+            type: newAuthType,
+            headerName: newAuthType === 'header' ? newAuthHeader : undefined,
+            token: newAuthToken || undefined,
+            configured: !!newAuthToken,
+          },
+        });
+      } else {
+        await api.addServer({
+          slug: newSlug,
+          name: newName || newSlug,
+          url: newUrl,
+          auth: {
+            type: newAuthType,
+            headerName: newAuthType === 'header' ? newAuthHeader : undefined,
+            token: newAuthToken || undefined,
+            configured: !!newAuthToken,
+          },
+        });
+      }
       setShowAddModal(false);
-      setNewSlug('');
-      setNewName('');
-      setNewUrl('');
-      setNewAuthToken('');
-      setTestResult(null);
+      setEditingServer(null);
       await fetchServers();
     } catch (e: any) {
-      alert(e.message || 'Failed to add server');
+      alert(e.message || 'Operation failed');
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +228,7 @@ export default function ServersPage() {
         </div>
         {isAdmin && (
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={handleOpenAdd}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#5356FB] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#4346E8] transition-colors"
           >
             <PlusIcon className="h-4 w-4" />
@@ -247,16 +292,42 @@ export default function ServersPage() {
                       <RefreshIcon className="h-3.5 w-3.5" />
                     </button>
                     {isAdmin && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteServer(server.id);
-                        }}
-                        className="rounded-lg p-1.5 text-[#D82A50] hover:bg-[#FDECEF] transition-colors"
-                        title="Remove upstream"
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleServer(server.slug, !server.enabled);
+                          }}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                            server.enabled
+                              ? 'bg-[#EEF0FF] text-[#5356FB] hover:bg-[#E0E4FF]'
+                              : 'bg-[#F1F3F9] text-[#55597D] hover:bg-[#E2E8F0]'
+                          }`}
+                          title={server.enabled ? 'Click to disable upstream' : 'Click to enable upstream'}
+                        >
+                          {server.enabled ? 'Disable' : 'Enable'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(server);
+                          }}
+                          className="rounded-lg p-1.5 text-[#55597D] hover:bg-[#F0F2FA] hover:text-[#1E2038] transition-colors"
+                          title="Edit server configuration"
+                        >
+                          <PencilIcon className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteServer(server.id);
+                          }}
+                          className="rounded-lg p-1.5 text-[#D82A50] hover:bg-[#FDECEF] transition-colors"
+                          title="Remove upstream"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -448,7 +519,7 @@ export default function ServersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddServer} className="mt-4 space-y-4">
+            <form onSubmit={handleSubmitServer} className="mt-4 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#55597D]">
                   Upstream Slug (e.g. &quot;fulfillment&quot;, &quot;supplier&quot;)
@@ -459,6 +530,7 @@ export default function ServersPage() {
                   pattern="^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
                   placeholder="fulfillment"
                   value={newSlug}
+                  disabled={!!editingServer}
                   onChange={(e) => setNewSlug(e.target.value.toLowerCase())}
                   className="mt-1 w-full rounded-lg border border-[#D5D8EB] bg-white px-3 py-2 text-xs font-mono text-[#1E2038] focus:outline-none focus:ring-2 focus:ring-[#5356FB]/20 focus:border-[#5356FB]"
                 />
