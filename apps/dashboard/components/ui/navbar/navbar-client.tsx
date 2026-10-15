@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { ILink } from './components/navlinks';
 import { SideNavbar } from './components/side-navbar';
 import { TopNavbar } from './components/top-navbar';
+import { useAuth } from '@/app/providers/auth-provider';
 
 export type NavItemVariant = 'default' | 'ghost';
 
@@ -25,6 +26,7 @@ interface NavLinkConfig {
   href: string;
   IconComponent: React.FC<any>;
   badge?: string;
+  adminOnly?: boolean;
 }
 
 const dataLinksConfig: NavLinkConfig[] = [
@@ -32,15 +34,20 @@ const dataLinksConfig: NavLinkConfig[] = [
   { title: 'Servers', href: '/servers', IconComponent: ServerIcon },
   { title: 'Chat Agent', href: '/chat', IconComponent: ChatIcon },
   { title: 'API Keys', href: '/api-keys', IconComponent: KeyIcon },
-  { title: 'Audit Log', href: '/audit', IconComponent: AuditIcon },
-  { title: 'Team', href: '/team', IconComponent: TeamIcon },
+  { title: 'Audit Log', href: '/audit', IconComponent: AuditIcon, adminOnly: true },
+  { title: 'Team', href: '/team', IconComponent: TeamIcon, adminOnly: true },
 ];
 
 export function NavbarClientComponent(props: { mobile: boolean }) {
   const pathname = usePathname();
+  const { isMember } = useAuth();
 
   const dataLinks: ILink[] = useMemo(() => {
-    return dataLinksConfig.map((config) => {
+    const visibleConfigs = isMember
+      ? dataLinksConfig.filter((c) => !c.adminOnly)
+      : dataLinksConfig;
+
+    return visibleConfigs.map((config) => {
       const isActive =
         pathname === config.href ||
         (config.href !== '/overview' && pathname?.startsWith(config.href));
@@ -53,7 +60,7 @@ export function NavbarClientComponent(props: { mobile: boolean }) {
         badge: config.badge,
       };
     });
-  }, [pathname]);
+  }, [pathname, isMember]);
 
   if (props.mobile) {
     return <TopNavbar dataLinks={dataLinks} />;

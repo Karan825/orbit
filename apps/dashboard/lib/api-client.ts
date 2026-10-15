@@ -500,8 +500,14 @@ export const api = {
   deleteServer: (serverId: string) =>
     apiFetch<{ success: boolean }>(`/api/servers/${serverId}`, { method: 'DELETE' }),
 
-  getApiKeys: () => apiFetch<{ keys: ApiKey[] }>('/api/api-keys'),
-  createApiKey: (data: { name: string; expiresInDays?: number }) =>
+  getApiKeys: (params?: { userId?: string; role?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.userId) query.append('userId', params.userId);
+    if (params?.role) query.append('role', params.role);
+    const search = query.toString() ? `?${query.toString()}` : '';
+    return apiFetch<{ keys: ApiKey[] }>(`/api/api-keys${search}`);
+  },
+  createApiKey: (data: { name: string; expiresInDays?: number; userId?: string }) =>
     apiFetch<CreatedApiKeyResponse>('/api/api-keys', { method: 'POST', body: JSON.stringify(data) }),
   revokeApiKey: (keyId: string) =>
     apiFetch<{ success: boolean }>(`/api/api-keys/${keyId}`, { method: 'DELETE' }),

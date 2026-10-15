@@ -15,6 +15,10 @@ export function createApiKeysRouter(apiKeyStore: ApiKeyStore) {
      */
     router.get("/", async (c) => {
         const principal = c.get("principal");
+        const queryUserId = c.req.query("userId");
+        const queryRole = c.req.query("role");
+        const effectiveUserId = principal?.userId || queryUserId;
+        const isMember = (principal && principal.role !== "admin") || (queryRole === "member");
 
         let query = db
             .select({
@@ -32,8 +36,8 @@ export function createApiKeysRouter(apiKeyStore: ApiKeyStore) {
             .orderBy(desc(apiKeys.createdAt));
 
         // Non-admin members only see their own keys (IDOR protection)
-        const rows = principal && principal.role !== "admin"
-            ? await query.where(eq(apiKeys.userId, principal.userId))
+        const rows = isMember && effectiveUserId
+            ? await query.where(eq(apiKeys.userId, effectiveUserId))
             : await query;
 
         return c.json({ keys: rows });
@@ -46,10 +50,10 @@ export function createApiKeysRouter(apiKeyStore: ApiKeyStore) {
      */
     router.post("/", async (c) => {
         const principal = c.get("principal");
-        const body = await c.req.json<{ name?: string; expiresInDays?: number }>();
+        const body = await c.req.json<{ name?: string; expiresInDays?: number; userId?: string }>();
 
         const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        let userId = principal?.userId;
+        let userId = principal?.userId || body.userId;
         if (!userId || !UUID_REGEX.test(userId)) {
             const [adminUser] = await db
                 .select({ id: users.id })
@@ -98,12 +102,11 @@ export function createApiKeysRouter(apiKeyStore: ApiKeyStore) {
         }
 
         if (principal && principal.role !== "admin" && existing[0].userId !== principal.userId) {
-            return c.json({ error: "Forbidden: You cannot revoke another user's key" }, 403);
+            return c.json({ error: "Forbidden: Cannot revoke other users' keys" }, 403);
         }
 
-        await apiKeyStore.revokeKey(keyId, principal?.userId);
-
-        return c.json({ success: true, message: "API key revoked immediately." });
+        await apiKeyStore.revokeKey(keyId);
+        return c.json({ ok: true, revokedId: keyId });
     });
 
     return router;

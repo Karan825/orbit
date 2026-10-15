@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useHeaderContext } from '@/app/providers/header-provider';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/app/providers/auth-provider';
 import { ApiKey, CreatedApiKeyResponse } from '@/types/mcp-gateway';
 import {
   Key as KeyIcon,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export default function ApiKeysPage() {
+  const { user, isAdmin, isMember } = useAuth();
   const { setHeaderTitle, setHeaderContent } = useHeaderContext();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,7 @@ export default function ApiKeysPage() {
 
   const fetchKeys = async () => {
     try {
-      const res = await api.getApiKeys();
+      const res = await api.getApiKeys(isMember ? { userId: user.id, role: user.role } : undefined);
       setKeys(res.keys || []);
     } catch (e) {
       console.error(e);
@@ -37,17 +39,18 @@ export default function ApiKeysPage() {
   };
 
   useEffect(() => {
-    setHeaderTitle('Client API Keys');
+    setHeaderTitle(isMember ? 'Personal API Keys' : 'Client API Keys');
     setHeaderContent(null);
     fetchKeys();
-  }, [setHeaderTitle, setHeaderContent]);
+  }, [setHeaderTitle, setHeaderContent, isMember, user.id]);
 
   const handleCreateKey = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await api.createApiKey({
-        name: keyName,
+        name: keyName || (isMember ? `${user.displayName}'s Key` : 'Client Key'),
         expiresInDays: expiresInDays > 0 ? expiresInDays : undefined,
+        userId: user.id,
       });
       setCreatedKeyData(res);
       setKeyName('');
@@ -85,9 +88,13 @@ export default function ApiKeysPage() {
       {/* Top Banner */}
       <div className="flex flex-col gap-4 rounded-xl border border-[#E2E4F0] bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-[#1E2038]">MCP Client API Keys</h2>
+          <h2 className="text-xl font-bold tracking-tight text-[#1E2038]">
+            {isMember ? 'My Personal API Keys' : 'MCP Client API Keys'}
+          </h2>
           <p className="mt-1 text-sm text-[#55597D]">
-            Per-user high-entropy Bearer credentials (256-bit) for Claude Code, Cursor, and external MCP clients.
+            {isMember
+              ? 'Generate and manage your personal credentials to connect external MCP clients like Claude Code and Cursor.'
+              : 'Per-user high-entropy Bearer credentials (256-bit) for Claude Code, Cursor, and external MCP clients.'}
           </p>
         </div>
         <button
@@ -105,9 +112,13 @@ export default function ApiKeysPage() {
       {/* Keys List Table */}
       <div className="rounded-xl border border-[#E2E4F0] bg-white shadow-sm overflow-hidden">
         <div className="p-5 border-b border-[#E2E4F0]">
-          <h3 className="font-bold text-[#1E2038]">Active & Revoked Credentials</h3>
+          <h3 className="font-bold text-[#1E2038]">
+            {isMember ? 'My Active Credentials' : 'Active & Revoked Credentials (Organization-wide)'}
+          </h3>
           <p className="mt-0.5 text-xs text-[#55597D]">
-            Keys are fast HMAC-SHA256 hashed with cluster pepper. Revocation applies on the very next call (no cache).
+            {isMember
+              ? 'These keys authenticate requests under your identity in the audit trail. Never share raw credentials.'
+              : 'Keys are fast HMAC-SHA256 hashed with cluster pepper. Revocation applies on the very next call (no cache).'}
           </p>
         </div>
 

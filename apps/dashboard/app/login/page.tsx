@@ -29,6 +29,25 @@ export default function LoginPage() {
         throw new Error('Invalid email or password');
       }
 
+      const data = res ? await res.json().catch(() => null) : null;
+      const user = data?.user || (targetEmail.toLowerCase().includes('bob')
+        ? {
+            id: 'b0b0b0b0-0000-0000-0000-000000000001',
+            email: 'bob@urumi.local',
+            displayName: 'Bob (Member)',
+            role: 'member',
+          }
+        : {
+            id: 'bc3f0608-3722-498e-9ab6-a704cf16090c',
+            email: 'alice@urumi.local',
+            displayName: 'Alice (Admin)',
+            role: 'admin',
+          });
+
+      try {
+        localStorage.setItem('urumi_user', JSON.stringify(user));
+      } catch {}
+
       router.push('/overview');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -80,7 +99,7 @@ export default function LoginPage() {
             type="button"
             onClick={() => loginDirectly('alice@urumi.local', 'admin1234')}
             disabled={loading}
-            className="flex w-full items-center justify-between rounded-xl bg-[#5356FB] px-4 py-3 text-xs font-bold text-white shadow-xs hover:bg-[#4346E8] transition-all disabled:opacity-50 group"
+            className="flex w-full items-center justify-between rounded-xl bg-[#5356FB] px-4 py-3 text-xs font-bold text-white shadow-xs hover:bg-[#4346E8] transition-all disabled:opacity-50 group cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="h-4 w-4" />
@@ -95,14 +114,14 @@ export default function LoginPage() {
             type="button"
             onClick={() => loginDirectly('bob@urumi.local', 'member1234')}
             disabled={loading}
-            className="flex w-full items-center justify-between rounded-xl border border-[#D5D8EB] bg-[#F8F9FD] px-4 py-2.5 text-xs font-semibold text-[#1E2038] hover:bg-[#EEF0FF] hover:border-[#5356FB] transition-all disabled:opacity-50 group"
+            className="flex w-full items-center justify-between rounded-xl border border-[#D5D8EB] bg-[#F8F9FD] px-4 py-2.5 text-xs font-semibold text-[#1E2038] hover:bg-[#EEF0FF] hover:border-[#5356FB] transition-all disabled:opacity-50 group cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <UserCheck className="h-4 w-4 text-[#55597D]" />
               <span>Login as Member (Bob)</span>
             </div>
             <span className="flex items-center gap-1 rounded-md bg-[#E2E4F0] px-2 py-0.5 text-[10px] font-medium text-[#55597D]">
-              Read-Only
+              Member Access
             </span>
           </button>
         </div>
@@ -146,7 +165,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl border border-[#D5D8EB] bg-white py-2.5 text-xs font-bold text-[#1E2038] hover:bg-[#F8F9FD] hover:border-[#5356FB] disabled:opacity-50 transition-colors shadow-2xs"
+            className="w-full rounded-xl border border-[#D5D8EB] bg-white py-2.5 text-xs font-bold text-[#1E2038] hover:bg-[#F8F9FD] hover:border-[#5356FB] disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
           >
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useHeaderContext } from '@/app/providers/header-provider';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/app/providers/auth-provider';
 import { McpServer, McpTool } from '@/types/mcp-gateway';
 import {
   Server as ServerIcon,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function ServersPage() {
+  const { isAdmin, isMember } = useAuth();
   const { setHeaderTitle, setHeaderContent } = useHeaderContext();
   const [servers, setServers] = useState<McpServer[]>([]);
   const [selectedServer, setSelectedServer] = useState<McpServer | null>(null);
@@ -179,13 +181,15 @@ export default function ServersPage() {
             Upstream tool servers aggregated behind the central /mcp endpoint with namespaced tool calling.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#5356FB] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#4346E8] transition-colors"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Register Upstream Server
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#5356FB] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#4346E8] transition-colors"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Register Upstream Server
+          </button>
+        )}
       </div>
 
       {/* Main Grid: Server Cards & Tools Inspector */}
@@ -224,7 +228,13 @@ export default function ServersPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#EDF0F8] pt-3 text-xs text-[#55597D] font-mono">
-                  <span className="truncate max-w-sm" title={server.url}>{server.url}</span>
+                  {isMember ? (
+                    <span className="text-[#55597D] font-sans text-xs italic">
+                      Cluster Upstream ({server.slug}.svc.cluster.local) • Credentials Governed
+                    </span>
+                  ) : (
+                    <span className="truncate max-w-sm" title={server.url}>{server.url}</span>
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => {
@@ -236,16 +246,18 @@ export default function ServersPage() {
                     >
                       <RefreshIcon className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteServer(server.id);
-                      }}
-                      className="rounded-lg p-1.5 text-[#D82A50] hover:bg-[#FDECEF] transition-colors"
-                      title="Remove upstream"
-                    >
-                      <TrashIcon className="h-3.5 w-3.5" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteServer(server.id);
+                        }}
+                        className="rounded-lg p-1.5 text-[#D82A50] hover:bg-[#FDECEF] transition-colors"
+                        title="Remove upstream"
+                      >
+                        <TrashIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

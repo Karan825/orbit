@@ -21,7 +21,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: gateway
-          image: urumi/gateway:dev-v4
+          image: urumi/gateway:dev-v5
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4000
@@ -95,7 +95,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: dashboard
-          image: urumi/dashboard:dev-v4
+          image: urumi/dashboard:dev-v5
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useHeaderContext } from '@/app/providers/header-provider';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/app/providers/auth-provider';
+import Link from 'next/link';
+import { ShieldAlert } from 'lucide-react';
 import { TeamMember } from '@/types/mcp-gateway';
 import {
   Users as TeamIcon,
@@ -13,6 +16,29 @@ import {
 } from 'lucide-react';
 
 export default function TeamPage() {
+  const { isMember } = useAuth();
+
+  if (isMember) {
+    return (
+      <div className="rounded-2xl border border-[#E2E4F0] bg-white p-12 text-center shadow-xs max-w-lg mx-auto mt-12 space-y-4">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EEF0FF] text-[#5356FB] border border-[#D5D8EB]">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h2 className="text-lg font-bold text-[#1E2038]">Administrator Access Required</h2>
+        <p className="text-xs text-[#55597D] leading-relaxed">
+          Team member invitation, role modifications, and global API key revocation are restricted to Administrators. Your current role is <strong>Team Member</strong>.
+        </p>
+        <div className="pt-2">
+          <Link
+            href="/api-keys"
+            className="inline-flex items-center rounded-xl bg-[#5356FB] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#4346E8] transition-colors"
+          >
+            Manage Your Personal API Keys
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const { setHeaderTitle, setHeaderContent } = useHeaderContext();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
