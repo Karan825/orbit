@@ -51,6 +51,12 @@ spec:
               port: 4000
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 100m
@@ -107,6 +113,18 @@ spec:
               value: "http://urumi-gateway.urumi-platform.svc.cluster.local:4000"
             - name: NEXT_PUBLIC_MOCK_DATA
               value: "false"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 100m

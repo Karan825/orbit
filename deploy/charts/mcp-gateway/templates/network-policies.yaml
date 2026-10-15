@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-store-mcp
+  namespace: {{ .Values.namespaces.store }}
+  labels:
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: woo-mcp
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.platform }}
+          podSelector:
+            matchLabels:
+              app: urumi-gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.upstreams.woocommerce.port }}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-upstreams
+  namespace: {{ .Values.namespaces.upstreams }}
+  labels:
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.platform }}
+          podSelector:
+            matchLabels:
+              app: urumi-gateway
+      ports:
+        - protocol: TCP
+          port: {{ .Values.upstreams.fulfillment.port }}
+        - protocol: TCP
+          port: {{ .Values.upstreams.supplier.port }}
+  policyTypes:
+    - Ingress

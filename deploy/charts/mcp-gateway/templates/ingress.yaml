@@ -1,0 +1,74 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: urumi-platform-ingress
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.dashboardHost | quote }}
+      secretName: {{ .Values.ingress.tls.secretName | quote }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.dashboardHost | quote }}
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: {{ .Values.gateway.service.port }}
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: {{ .Values.gateway.service.port }}
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: {{ .Values.gateway.service.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-dashboard
+                port:
+                  number: {{ .Values.dashboard.service.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: urumi-store-ingress
+  namespace: {{ .Values.namespaces.store }}
+  labels:
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.storeHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-store-wordpress
+                port:
+                  number: 80
+{{- end }}

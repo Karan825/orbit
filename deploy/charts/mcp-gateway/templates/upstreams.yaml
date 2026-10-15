@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fulfillment-mcp
+  namespace: {{ .Values.namespaces.upstreams }}
+  labels:
+    app: fulfillment-mcp
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fulfillment-mcp
+  template:
+    metadata:
+      labels:
+        app: fulfillment-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: fulfillment
+          image: "{{ .Values.upstreams.fulfillment.image.repository }}:{{ .Values.upstreams.fulfillment.image.tag }}"
+          imagePullPolicy: {{ .Values.upstreams.fulfillment.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.upstreams.fulfillment.port }}
+              name: mcp
+          env:
+            - name: PORT
+              value: "{{ .Values.upstreams.fulfillment.port }}"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.fulfillment.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.fulfillment.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.upstreams.fulfillment.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fulfillment-mcp
+  namespace: {{ .Values.namespaces.upstreams }}
+  labels:
+    app: fulfillment-mcp
+spec:
+  selector:
+    app: fulfillment-mcp
+  ports:
+    - port: {{ .Values.upstreams.fulfillment.port }}
+      targetPort: {{ .Values.upstreams.fulfillment.port }}
+      name: mcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplier-mcp
+  namespace: {{ .Values.namespaces.upstreams }}
+  labels:
+    app: supplier-mcp
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supplier-mcp
+  template:
+    metadata:
+      labels:
+        app: supplier-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: supplier
+          image: "{{ .Values.upstreams.supplier.image.repository }}:{{ .Values.upstreams.supplier.image.tag }}"
+          imagePullPolicy: {{ .Values.upstreams.supplier.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.upstreams.supplier.port }}
+              name: mcp
+          env:
+            - name: PORT
+              value: "{{ .Values.upstreams.supplier.port }}"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.supplier.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.supplier.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.upstreams.supplier.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplier-mcp
+  namespace: {{ .Values.namespaces.upstreams }}
+  labels:
+    app: supplier-mcp
+spec:
+  selector:
+    app: supplier-mcp
+  ports:
+    - port: {{ .Values.upstreams.supplier.port }}
+      targetPort: {{ .Values.upstreams.supplier.port }}
+      name: mcp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: woo-mcp
+  namespace: {{ .Values.namespaces.store }}
+  labels:
+    app: woo-mcp
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: woo-mcp
+  template:
+    metadata:
+      labels:
+        app: woo-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: woo-mcp
+          image: "{{ .Values.upstreams.woocommerce.image.repository }}:{{ .Values.upstreams.woocommerce.image.tag }}"
+          imagePullPolicy: {{ .Values.upstreams.woocommerce.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.upstreams.woocommerce.port }}
+              name: mcp
+          env:
+            - name: PORT
+              value: "{{ .Values.upstreams.woocommerce.port }}"
+            - name: WC_STORE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_STORE_URL
+            - name: WC_CONSUMER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_CONSUMER_KEY
+            - name: WC_CONSUMER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_CONSUMER_SECRET
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.woocommerce.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.upstreams.woocommerce.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.upstreams.woocommerce.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: woo-mcp
+  namespace: {{ .Values.namespaces.store }}
+  labels:
+    app: woo-mcp
+spec:
+  selector:
+    app: woo-mcp
+  ports:
+    - port: {{ .Values.upstreams.woocommerce.port }}
+      targetPort: {{ .Values.upstreams.woocommerce.port }}
+      name: mcp

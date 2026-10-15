@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urumi-dashboard
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    app: urumi-dashboard
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.dashboard.replicaCount }}
+  selector:
+    matchLabels:
+      app: urumi-dashboard
+  template:
+    metadata:
+      labels:
+        app: urumi-dashboard
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: dashboard
+          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.dashboard.service.port }}
+              name: http
+          env:
+            - name: PORT
+              value: "{{ .Values.dashboard.service.port }}"
+            - name: GATEWAY_API_URL
+              value: "http://urumi-gateway.{{ .Values.namespaces.platform }}.svc.{{ .Values.global.clusterDomain }}:{{ .Values.gateway.service.port }}"
+            - name: NEXT_PUBLIC_MOCK_DATA
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: {{ .Values.dashboard.service.port }}
+            initialDelaySeconds: {{ .Values.dashboard.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.dashboard.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: {{ .Values.dashboard.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.dashboard.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: urumi-dashboard
+  namespace: {{ .Values.namespaces.platform }}
+  labels:
+    app: urumi-dashboard
+    {{- include "mcp-gateway.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.dashboard.service.type }}
+  selector:
+    app: urumi-dashboard
+  ports:
+    - port: {{ .Values.dashboard.service.port }}
+      targetPort: {{ .Values.dashboard.service.port }}
+      name: http

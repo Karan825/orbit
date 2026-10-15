@@ -1,0 +1,40 @@
+global:
+  environment: production
+
+ingress:
+  enabled: true
+  className: traefik
+  # Replace with VPS IP wildcard domain or custom DNS name
+  dashboardHost: app.mcp-gateway.sslip.io
+  storeHost: store.mcp-gateway.sslip.io
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls:
+    enabled: true
+    secretName: mcp-gateway-prod-tls
+
+gateway:
+  replicaCount: 2
+  image:
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+dashboard:
+  replicaCount: 2
+  image:
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi

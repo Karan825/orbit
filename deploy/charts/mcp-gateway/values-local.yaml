@@ -1,0 +1,20 @@
+global:
+  environment: local
+
+ingress:
+  enabled: true
+  className: traefik
+  dashboardHost: app.localtest.me
+  storeHost: wordpress.local
+  tls:
+    enabled: false
+
+gateway:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent
+
+dashboard:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent

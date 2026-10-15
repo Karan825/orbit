@@ -1,0 +1,9 @@
+apiVersion: v2
+name: mcp-gateway
+description: Enterprise Model Context Protocol (MCP) Gateway, Ingress & Control Plane
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Platform Operations
+    email: admin@urumi.local
