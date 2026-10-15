@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-ingress
+  namespace: urumi-platform
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    # 1. Access via domain app.localtest.me:8080
+    - host: app.localtest.me
+      http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: 4000
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-dashboard
+                port:
+                  number: 3000
+    # 2. Access directly via localhost:8080 (without host header)
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: 4000
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: 4000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-dashboard
+                port:
+                  number: 3000

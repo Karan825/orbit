@@ -1,0 +1,129 @@
+# 1. Gateway Deployment & Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urumi-gateway
+  namespace: urumi-platform
+  labels:
+    app: urumi-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urumi-gateway
+  template:
+    metadata:
+      labels:
+        app: urumi-gateway
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: gateway
+          image: urumi/gateway:dev-v4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: http
+          env:
+            - name: PORT
+              value: "4000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: platform-db
+                  key: DATABASE_URL
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: platform-llm
+                  key: GEMINI_API_KEY
+            - name: WOOCOMMERCE_MCP_URL
+              value: "http://woo-mcp.urumi-store.svc.cluster.local:3001/mcp"
+            - name: FULFILLMENT_MCP_URL
+              value: "http://fulfillment-mcp.mcp-upstreams.svc.cluster.local:3002/mcp"
+            - name: SUPPLIER_MCP_URL
+              value: "http://supplier-mcp.mcp-upstreams.svc.cluster.local:3003/mcp"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: urumi-gateway
+  namespace: urumi-platform
+spec:
+  selector:
+    app: urumi-gateway
+  ports:
+    - port: 4000
+      targetPort: 4000
+      name: http
+---
+# 2. Dashboard Deployment & Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urumi-dashboard
+  namespace: urumi-platform
+  labels:
+    app: urumi-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urumi-dashboard
+  template:
+    metadata:
+      labels:
+        app: urumi-dashboard
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: dashboard
+          image: urumi/dashboard:dev-v4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: PORT
+              value: "3000"
+            - name: GATEWAY_API_URL
+              value: "http://urumi-gateway.urumi-platform.svc.cluster.local:4000"
+            - name: NEXT_PUBLIC_MOCK_DATA
+              value: "false"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: urumi-dashboard
+  namespace: urumi-platform
+spec:
+  selector:
+    app: urumi-dashboard
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http

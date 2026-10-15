@@ -1,7 +1,6 @@
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import * as WooCommerceModule from "@woocommerce/woocommerce-rest-api";
 import { z } from "zod";
 
 // Describe the product fields we use from WooCommerce.
@@ -34,15 +33,41 @@ interface WooCommerceOrder {
   }>;
 }
 
-// Initialize the WooCommerce REST API client.
-const WooCommerceRestApi = WooCommerceModule.default.default;
+const storeUrl = (process.env.WC_STORE_URL || "").replace(/\/+$/, "");
+const consumerKey = process.env.WC_CONSUMER_KEY || "";
+const consumerSecret = process.env.WC_CONSUMER_SECRET || "";
+const authHeader = "Basic " + Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
 
-const wooCommerce = new WooCommerceRestApi({
-  url: process.env.WC_STORE_URL!,
-  consumerKey: process.env.WC_CONSUMER_KEY!,
-  consumerSecret: process.env.WC_CONSUMER_SECRET!,
-  version: "wc/v3",
-});
+async function wooFetch<T = any>(
+  path: string,
+  options: { method?: string; body?: any; params?: Record<string, any> } = {}
+): Promise<T> {
+  const url = new URL(`${storeUrl}/wp-json/wc/v3/${path.replace(/^\/+/, "")}`);
+  if (options.params) {
+    for (const [k, v] of Object.entries(options.params)) {
+      if (v !== undefined && v !== null) {
+        url.searchParams.set(k, String(v));
+      }
+    }
+  }
+
+  const res = await fetch(url.toString(), {
+    method: options.method || "GET",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+      "X-Forwarded-Proto": "https",
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`WooCommerce API error (${res.status}): ${errorText}`);
+  }
+
+  return res.json() as Promise<T>;
+}
 
 // Create the Hono application.
 const app = new Hono();
@@ -61,13 +86,11 @@ const mcpHandler = createMcpHandler(() => {
       description: "List products available in the store",
     },
     async () => {
-      const response = await wooCommerce.get("products", {
-        per_page: 10,
+      const response = await wooFetch<WooCommerceProduct[]>("products", {
+        params: { per_page: 10 },
       });
 
-      const products = (
-        response.data as WooCommerceProduct[]
-      ).map(({ id, name, price }) => ({
+      const products = response.map(({ id, name, price }) => ({
         id,
         name,
         price,
@@ -98,13 +121,14 @@ const mcpHandler = createMcpHandler(() => {
       },
     },
     async ({ name, price }) => {
-      const response = await wooCommerce.post("products", {
-        name,
-        regular_price: price,
-        status: "draft",
+      const product = await wooFetch<WooCommerceProduct>("products", {
+        method: "POST",
+        body: {
+          name,
+          regular_price: price,
+          status: "publish",
+        },
       });
-
-      const product = response.data as WooCommerceProduct;
 
       return {
         content: [
@@ -132,31 +156,26 @@ const mcpHandler = createMcpHandler(() => {
       },
     },
     async ({ limit }) => {
-      const response = await wooCommerce.get("orders", {
-        per_page: limit,
-        orderby: "date",
-        order: "desc",
+      const orders = await wooFetch<WooCommerceOrder[]>("orders", {
+        params: {
+          per_page: limit,
+          orderby: "date",
+          order: "desc",
+        },
       });
 
-      const orders = response.data.map(
-        (order: {
-          id: number;
-          status: string;
-          date_created: string;
-          total: string;
-        }) => ({
-          id: order.id,
-          status: order.status,
-          date_created: order.date_created,
-          total: order.total,
-        }),
-      );
+      const formatted = orders.map((order) => ({
+        id: order.id,
+        status: order.status,
+        date_created: order.date_created,
+        total: order.total,
+      }));
 
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(orders),
+            text: JSON.stringify(formatted),
           },
         ],
       };
@@ -173,8 +192,7 @@ const mcpHandler = createMcpHandler(() => {
       },
     },
     async ({ id }) => {
-      const response = await wooCommerce.get(`orders/${id}`);
-      const order = response.data as WooCommerceOrder;
+      const order = await wooFetch<WooCommerceOrder>(`orders/${id}`);
 
       return {
         content: [
@@ -220,8 +238,10 @@ const mcpHandler = createMcpHandler(() => {
       },
     },
     async ({ id, status }) => {
-      const response = await wooCommerce.put(`orders/${id}`, { status });
-      const order = response.data as WooCommerceOrder;
+      const order = await wooFetch<WooCommerceOrder>(`orders/${id}`, {
+        method: "PUT",
+        body: { status },
+      });
 
       return {
         content: [

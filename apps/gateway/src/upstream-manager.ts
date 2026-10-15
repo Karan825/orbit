@@ -98,6 +98,27 @@ export class UpstreamManager {
         return Array.from(this.upstreams.values());
     }
 
+    public addUpstream(config: UpstreamConfig): void {
+        this.upstreams.set(config.id, {
+            config,
+            status: "unhealthy",
+            client: null,
+            transport: null,
+            tools: new Map(),
+            consecutiveFailures: 0,
+            consecutiveSuccesses: 0,
+        });
+        void this.probeUpstream(config.id);
+    }
+
+    public async removeUpstream(id: string): Promise<void> {
+        const state = this.upstreams.get(id);
+        if (state?.client) {
+            await state.client.close().catch(() => undefined);
+        }
+        this.upstreams.delete(id);
+    }
+
     /**
      * Probes an individual upstream with a bounded timeout.
      * Updates health state, manages client connection, and refreshes tools.
