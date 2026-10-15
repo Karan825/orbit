@@ -1,0 +1,44 @@
+# 1. Protect woo-mcp in urumi-store
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-woo-mcp
+  namespace: urumi-store
+spec:
+  podSelector:
+    matchLabels:
+      app: woo-mcp
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow ONLY traffic originating from the Gateway pod in urumi-platform
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: urumi-platform
+          podSelector:
+            matchLabels:
+              app: urumi-gateway
+      ports:
+        - protocol: TCP
+          port: 3001
+---
+# 2. Protect all upstreams in mcp-upstreams
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-mcp-upstreams
+  namespace: mcp-upstreams
+spec:
+  podSelector: {} # Matches all pods in mcp-upstreams
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow ONLY traffic originating from the Gateway pod in urumi-platform
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: urumi-platform
+          podSelector:
+            matchLabels:
+              app: urumi-gateway

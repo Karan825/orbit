@@ -103,7 +103,7 @@ describe("MCP Gateway Reliability & Health Tests", () => {
 
         await gatewayManager.probeAll();
 
-        const app = createGatewayApp(gatewayManager);
+        const app = createGatewayApp(gatewayManager, { disableAuth: true });
         await new Promise<void>((resolve) => {
             gatewayServer = serve({ fetch: app.fetch, port: 0 }, (info) => {
                 gatewayPort = info.port;
@@ -243,7 +243,7 @@ describe("MCP Gateway Reliability & Health Tests", () => {
 
         await customManager.probeAll();
 
-        const customApp = createGatewayApp(customManager);
+        const customApp = createGatewayApp(customManager, { disableAuth: true });
         let customPort = 0;
         let customServer: any;
         await new Promise<void>((resolve) => {
@@ -294,7 +294,7 @@ describe("MCP Gateway Reliability & Health Tests", () => {
 
         await comboManager.probeAll();
 
-        const comboApp = createGatewayApp(comboManager);
+        const comboApp = createGatewayApp(comboManager, { disableAuth: true });
         let comboPort = 0;
         let comboServer: any;
         await new Promise<void>((resolve) => {
@@ -351,25 +351,33 @@ describe("MCP Gateway Reliability & Health Tests", () => {
         assert.ok(!callA.isError);
     });
 
-    test("9. Live workspace upstreams (port 3001, 3002, 3003) expose all 11 tools when healthy", async () => {
+    test("9. Live workspace upstreams (port 3001, 3002, 3003) expose all 11 tools when healthy", async (t) => {
         const liveManager = new UpstreamManager([
             { id: "woocommerce", url: "http://localhost:3001/mcp" },
             { id: "fulfillment", url: "http://localhost:3002/mcp" },
             { id: "supplier", url: "http://localhost:3003/mcp" },
         ]);
 
-        await liveManager.probeAll();
-        const report = liveManager.getHealthReport();
+        try {
+            await liveManager.probeAll();
+            const report = liveManager.getHealthReport();
 
-        assert.strictEqual(report.totalUpstreams, 3);
-        assert.strictEqual(report.healthyUpstreams, 3, "All 3 workspace upstreams must be healthy");
-        assert.strictEqual(report.discoveredTools, 11, "Must discover all 11 tools");
+            if (report.healthyUpstreams === 0) {
+                t.skip("Live servers on 3001-3003 not running; skipping integration check.");
+                return;
+            }
 
-        const tools = liveManager.getActiveTools().map((t) => t.gatewayName);
-        assert.ok(tools.includes("woocommerce_list_products"));
-        assert.ok(tools.includes("fulfillment_list_shipments"));
-        assert.ok(tools.includes("supplier_list_suppliers"));
+            assert.strictEqual(report.totalUpstreams, 3);
+            assert.strictEqual(report.healthyUpstreams, 3, "All 3 workspace upstreams must be healthy");
+            assert.strictEqual(report.discoveredTools, 11, "Must discover all 11 tools");
 
-        await liveManager.close();
+            const tools = liveManager.getActiveTools().map((t) => t.gatewayName);
+            assert.ok(tools.includes("woocommerce_list_products"));
+            assert.ok(tools.includes("fulfillment_list_shipments"));
+            assert.ok(tools.includes("supplier_list_suppliers"));
+        } finally {
+            await liveManager.close();
+        }
     });
+
 });

@@ -1,139 +1,171 @@
-import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
-import { Principal, userRole } from './principal.js';
+import crypto from "node:crypto";
+import { eq, and, isNull } from "drizzle-orm";
+import { db } from "../db/client.js";
+import { apiKeys, users } from "../db/schema.js";
+import type { Principal, userRole } from "./principal.js";
 
-export interface ApiKeyRecord {
+// Pepper secret should come from environment or secret, with a secure fallback for dev
+const API_KEY_PEPPER = process.env.API_KEY_PEPPER || "urumi-default-dev-pepper-2026-secret";
+
+export interface GeneratedKey {
     id: string;
-    userId: string;
-    email: string;
-    role: userRole;
-    keyPrefix: string;     // e.g. "urk_a1b2c3d4" used for O(1) lookup
-    keyHash: Buffer;        // HMAC-SHA256 digest of secret
-    createdAt: Date;
-    expiresAt: Date | null;
-    revokedAt: Date | null;
-    userStatus: 'active' | 'suspended';
+    rawKey: string;
+    prefix: string;
+    lastFour: string;
 }
 
 export class ApiKeyStore {
-    // Map keyed by keyPrefix for fast O(1) lookup
-    private keysByPrefix = new Map<string, ApiKeyRecord>();
-    private pepper: string;
-
-    constructor(pepper?: string) {
-        this.pepper = pepper || process.env.GATEWAY_KEY_PEPPER || 'urumi-dev-pepper-must-be-changed-in-prod';
+    /**
+     * Hashes the raw secret part of the key using HMAC-SHA256 with the server pepper.
+     */
+    private hashSecret(secret: string): string {
+        return crypto
+            .createHmac("sha256", API_KEY_PEPPER)
+            .update(secret)
+            .digest("hex");
     }
 
     /**
-     * Hashes a secret using HMAC-SHA-256 with the pepper
+     * Creates and stores a new API key for a user in PostgreSQL.
+     * Returns the rawKey ONCE so the user can copy it.
      */
-    private hashSecret(secret: string): Buffer {
-        return createHmac('sha256', this.pepper).update(secret).digest();
-    }
-
-
-    createKey(params: {
+    async createKey(params: {
         userId: string;
-        email: string;
-        role: userRole;
+        name?: string;
         expiresInDays?: number;
-    }): { rawKey: string; record: ApiKeyRecord } {
-        const keyId = randomBytes(4).toString('hex'); // 8 hex characters
+    }): Promise<GeneratedKey> {
+        // Generate random 8-character ID and 32-byte (43 char) random base64url secret
+        const keyId = crypto.randomBytes(4).toString("hex"); // 8 hex chars
+        const secret = crypto.randomBytes(32).toString("base64url");
+        const rawKey = `urk_${keyId}_${secret}`;
         const prefix = `urk_${keyId}`;
-        const rawSecret = randomBytes(32).toString('base64url'); // 32 bytes = 43 base64url chars
-        const rawKey = `${prefix}_${rawSecret}`;
+        const lastFour = secret.slice(-4);
+        const keyHash = this.hashSecret(secret);
 
-        const keyHash = this.hashSecret(rawSecret);
-        const now = new Date();
+        const expiresAt = params.expiresInDays
+            ? new Date(Date.now() + params.expiresInDays * 24 * 60 * 60 * 1000)
+            : null;
 
-        const record: ApiKeyRecord = {
-            id: `key_${keyId}`,
-            userId: params.userId,
-            email: params.email,
-            role: params.role,
-            keyPrefix: prefix,
-            keyHash,
-            createdAt: now,
-            expiresAt: params.expiresInDays
-                ? new Date(now.getTime() + params.expiresInDays * 24 * 60 * 60 * 1000)
-                : null,
-            revokedAt: null,
-            userStatus: 'active',
+        const [record] = await db
+            .insert(apiKeys)
+            .values({
+                userId: params.userId,
+                name: params.name || "Default API Key",
+                keyPrefix: prefix,
+                keyHash,
+                lastFour,
+                expiresAt,
+            })
+            .returning();
+
+        return {
+            id: record.id,
+            rawKey,
+            prefix,
+            lastFour,
         };
-
-        this.keysByPrefix.set(prefix, record);
-
-        return { rawKey, record };
     }
 
     /**
-     * Constant-time verification of raw key string.
-     * Returns authenticated Principal or null.
+     * Validates a raw API key directly against PostgreSQL:
+     * 1. Extracts key prefix.
+     * 2. Finds active, unrevoked key joined with user in PostgreSQL.
+     * 3. Verifies HMAC-SHA256 in constant time.
+     * 4. Updates last_used_at.
      */
-    verifyKey(rawKey: string, requestId: string): Principal | null {
-        if (!rawKey || typeof rawKey !== 'string') return null;
+    async validateKey(rawKey: string, requestId = "req-default"): Promise<Principal | null> {
+        if (!rawKey || !rawKey.startsWith("urk_")) {
+            return null;
+        }
 
-        // Validate format: urk_<8 chars>_<secret>
-        const parts = rawKey.split('_');
-        if (parts.length !== 3 || parts[0] !== 'urk') {
+        const parts = rawKey.split("_");
+        if (parts.length < 3) {
             return null;
         }
 
         const prefix = `urk_${parts[1]}`;
-        const secret = parts[2];
+        const secret = parts.slice(2).join("_");
+        const computedHash = this.hashSecret(secret);
 
-        const record = this.keysByPrefix.get(prefix);
-        if (!record) {
+        // Fetch key directly from database (zero cache for instant revocation)
+        const rows = await db
+            .select({
+                keyId: apiKeys.id,
+                userId: apiKeys.userId,
+                keyHash: apiKeys.keyHash,
+                expiresAt: apiKeys.expiresAt,
+                revokedAt: apiKeys.revokedAt,
+                userEmail: users.email,
+                userRole: users.role,
+                userStatus: users.status,
+            })
+            .from(apiKeys)
+            .leftJoin(users, eq(apiKeys.userId, users.id))
+            .where(
+                and(
+                    eq(apiKeys.keyPrefix, prefix),
+                    isNull(apiKeys.revokedAt), // Must not be revoked
+                ),
+            )
+            .limit(1);
+
+        if (rows.length === 0) {
             return null;
         }
 
-        // Check if user is suspended
-        if (record.userStatus !== 'active') {
+        const keyRecord = rows[0];
+
+        // Check expiration
+        if (keyRecord.expiresAt && keyRecord.expiresAt.getTime() < Date.now()) {
             return null;
         }
 
-        // Check if revoked
-        if (record.revokedAt !== null) {
+        // Check if user is disabled
+        if (keyRecord.userStatus && keyRecord.userStatus !== "active") {
             return null;
         }
 
-        // Check expiry
-        if (record.expiresAt && record.expiresAt.getTime() < Date.now()) {
+        // Constant-time comparison to prevent timing attacks
+        const computedBuf = Buffer.from(computedHash);
+        const storedBuf = Buffer.from(keyRecord.keyHash);
+
+        if (
+            computedBuf.length !== storedBuf.length ||
+            !crypto.timingSafeEqual(computedBuf, storedBuf)
+        ) {
             return null;
         }
 
-        // Constant-time HMAC comparison
-        const incomingHash = this.hashSecret(secret);
-        if (incomingHash.length !== record.keyHash.length) {
-            return null;
-        }
+        // Asynchronously update last_used_at timestamp without blocking request
+        db.update(apiKeys)
+            .set({ lastUsedAt: new Date() })
+            .where(eq(apiKeys.id, keyRecord.keyId))
+            .catch(() => { });
 
-        const matches = timingSafeEqual(incomingHash, record.keyHash);
-        if (!matches) {
-            return null;
-        }
-
-        // Build the authenticated Principal
         return {
-            userId: record.userId,
-            email: record.email,
-            role: record.role,
-            apiKeyId: record.id,
-            channel: 'mcp',
+            userId: keyRecord.userId ?? "anonymous",
+            email: keyRecord.userEmail ?? "unknown@urumi.local",
+            role: (keyRecord.userRole as userRole) ?? "member",
+            apiKeyId: keyRecord.keyId,
+            channel: "mcp",
             chatSessionId: null,
             requestId,
         };
     }
 
     /**
-     * Revokes a key immediately.
+     * Instantly revokes an API key in PostgreSQL.
      */
-    revokeKey(prefixOrId: string): boolean {
-        for (const record of this.keysByPrefix.values()) {
-            if (record.keyPrefix === prefixOrId || record.id === prefixOrId) {
-                record.revokedAt = new Date();
-                return true;
-            }
-        }
-        return false;
+    async revokeKey(keyId: string, revokedByUserId?: string): Promise<boolean> {
+        const result = await db
+            .update(apiKeys)
+            .set({
+                revokedAt: new Date(),
+                revokedBy: revokedByUserId ?? null,
+            })
+            .where(eq(apiKeys.id, keyId))
+            .returning();
+
+        return result.length > 0;
     }
 }

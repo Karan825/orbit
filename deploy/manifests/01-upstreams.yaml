@@ -1,0 +1,188 @@
+# 1. Fulfillment Service & Deployment in mcp-upstreams
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fulfillment-mcp
+  namespace: mcp-upstreams
+  labels:
+    app: fulfillment-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fulfillment-mcp
+  template:
+    metadata:
+      labels:
+        app: fulfillment-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: fulfillment
+          image: urumi/fulfillment-mcp:dev-v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3002
+              name: mcp
+          env:
+            - name: PORT
+              value: "3002"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3002
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fulfillment-mcp
+  namespace: mcp-upstreams
+spec:
+  selector:
+    app: fulfillment-mcp
+  ports:
+    - port: 3002
+      targetPort: 3002
+      name: mcp
+---
+# 2. Supplier Service & Deployment in mcp-upstreams
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supplier-mcp
+  namespace: mcp-upstreams
+  labels:
+    app: supplier-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supplier-mcp
+  template:
+    metadata:
+      labels:
+        app: supplier-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: supplier
+          image: urumi/supplier-mcp:dev-v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3003
+              name: mcp
+          env:
+            - name: PORT
+              value: "3003"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3003
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supplier-mcp
+  namespace: mcp-upstreams
+spec:
+  selector:
+    app: supplier-mcp
+  ports:
+    - port: 3003
+      targetPort: 3003
+      name: mcp
+---
+# 3. WooCommerce Service & Deployment in urumi-store
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: woo-mcp
+  namespace: urumi-store
+  labels:
+    app: woo-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: woo-mcp
+  template:
+    metadata:
+      labels:
+        app: woo-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: woo-mcp
+          image: urumi/woo-mcp:dev-v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+              name: mcp
+          env:
+            - name: PORT
+              value: "3001"
+            - name: WC_STORE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_STORE_URL
+            - name: WC_CONSUMER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_CONSUMER_KEY
+            - name: WC_CONSUMER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: woo-api-keys
+                  key: WC_CONSUMER_SECRET
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3001
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: woo-mcp
+  namespace: urumi-store
+spec:
+  selector:
+    app: woo-mcp
+  ports:
+    - port: 3001
+      targetPort: 3001
+      name: mcp

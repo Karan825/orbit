@@ -9,7 +9,7 @@ export interface AuthVariables {
 }
 
 /**
- * Creates a Hono middleware that verifies Bearer API keys.
+ * Creates a Hono middleware that verifies Bearer API keys or query param tokens.
  * Attaches the authenticated Principal and requestId to the Hono context.
  */
 export function createAuthMiddleware(
@@ -20,25 +20,29 @@ export function createAuthMiddleware(
         const requestId = c.req.header('x-request-id') || randomUUID();
         c.set('requestId', requestId);
 
-        // 2. Check Authorization header
+        // 2. Check Authorization header or query params (?apiKey= / ?token= / ?key=)
+        let rawKey: string | null = null;
         const authHeader = c.req.header('authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            rawKey = authHeader.substring(7).trim();
+        } else {
+            rawKey = c.req.query('apiKey') || c.req.query('token') || c.req.query('key') || null;
+        }
+
+        if (!rawKey) {
             return c.json(
                 {
                     error: {
                         code: 'UNAUTHORIZED',
-                        message: 'Missing or malformed Authorization header. Expected Bearer token.',
+                        message: 'Missing or malformed Authorization header. Expected Bearer token or ?apiKey= query parameter.',
                     },
                 },
                 401,
             );
         }
 
-        // 3. Extract the token after 'Bearer '
-        const rawKey = authHeader.substring(7).trim();
-
-        // 4. Verify against ApiKeyStore (HMAC comparison & revocation check)
-        const principal = apiKeyStore.verifyKey(rawKey, requestId);
+        // 3. Verify against ApiKeyStore (HMAC comparison & revocation check)
+        const principal = await apiKeyStore.validateKey(rawKey, requestId);
 
         if (!principal) {
             return c.json(
@@ -52,7 +56,7 @@ export function createAuthMiddleware(
             );
         }
 
-        // 5. Store authenticated Principal in context and proceed
+        // 4. Store authenticated Principal in context and proceed
         c.set('principal', principal);
         await next();
     };
