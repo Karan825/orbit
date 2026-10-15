@@ -6,7 +6,9 @@ import type { userRole, Principal } from "../auth/principal.js";
  */
 export const ADMIN_ONLY_TOOLS = new Set<string>([
     "create_product",
+    "update_order",
     "update_order_status",
+    "update_shipment",
     "update_shipment_status",
     "create_restock_request",
 ]);

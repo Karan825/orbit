@@ -1,0 +1,98 @@
+global:
+  environment: local
+  clusterDomain: cluster.local
+
+namespaces:
+  platform: urumi-platform
+  store: urumi-store
+  upstreams: mcp-upstreams
+
+gateway:
+  replicaCount: 1
+  image:
+    repository: urumi/gateway
+    tag: dev-v8
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  probes:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+dashboard:
+  replicaCount: 1
+  image:
+    repository: urumi/dashboard
+    tag: dev-v8
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  probes:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+upstreams:
+  fulfillment:
+    image:
+      repository: urumi/fulfillment-mcp
+      tag: dev-v1
+      pullPolicy: IfNotPresent
+    port: 3002
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  supplier:
+    image:
+      repository: urumi/supplier-mcp
+      tag: dev-v1
+      pullPolicy: IfNotPresent
+    port: 3003
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  woocommerce:
+    image:
+      repository: urumi/woo-mcp
+      tag: dev-v1
+      pullPolicy: IfNotPresent
+    port: 3001
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+ingress:
+  enabled: true
+  className: traefik
+  dashboardHost: app.localtest.me
+  storeHost: wordpress.local
+  tls:
+    enabled: false
+    secretName: ""

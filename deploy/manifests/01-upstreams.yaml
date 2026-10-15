@@ -35,6 +35,12 @@ spec:
               port: 3002
             initialDelaySeconds: 3
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3002
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 50m
@@ -93,6 +99,12 @@ spec:
               port: 3003
             initialDelaySeconds: 3
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3003
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 50m
@@ -166,6 +178,12 @@ spec:
               port: 3001
             initialDelaySeconds: 3
             periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 50m

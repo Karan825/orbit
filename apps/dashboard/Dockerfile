@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@12.11.2 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/dashboard ./apps/dashboard
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter @urumi/dashboard...
 RUN pnpm --filter @urumi/dashboard build
 
 FROM node:24-alpine AS runner

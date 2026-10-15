@@ -21,7 +21,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: gateway
-          image: urumi/gateway:dev-v4
+          image: urumi/gateway:dev-v8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4000
@@ -51,6 +51,12 @@ spec:
               port: 4000
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 100m
@@ -95,7 +101,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: dashboard
-          image: urumi/dashboard:dev-v4
+          image: urumi/dashboard:dev-v8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -107,6 +113,18 @@ spec:
               value: "http://urumi-gateway.urumi-platform.svc.cluster.local:4000"
             - name: NEXT_PUBLIC_MOCK_DATA
               value: "false"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 100m

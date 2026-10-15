@@ -499,9 +499,28 @@ export const api = {
   getServerTools: (serverId: string) => apiFetch<McpTool[]>(`/api/servers/${serverId}/tools`),
   deleteServer: (serverId: string) =>
     apiFetch<{ success: boolean }>(`/api/servers/${serverId}`, { method: 'DELETE' }),
+  updateServer: (
+    serverId: string,
+    data: { name?: string; url?: string; auth?: any; timeoutMs?: number; enabled?: boolean }
+  ) =>
+    apiFetch<{ success: boolean; server: any }>(`/api/servers/${serverId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  toggleServer: (slug: string, enabled: boolean) =>
+    apiFetch<{ success: boolean; server: any }>(`/api/servers/${slug}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
 
-  getApiKeys: () => apiFetch<{ keys: ApiKey[] }>('/api/api-keys'),
-  createApiKey: (data: { name: string; expiresInDays?: number }) =>
+  getApiKeys: (params?: { userId?: string; role?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.userId) query.append('userId', params.userId);
+    if (params?.role) query.append('role', params.role);
+    const search = query.toString() ? `?${query.toString()}` : '';
+    return apiFetch<{ keys: ApiKey[] }>(`/api/api-keys${search}`);
+  },
+  createApiKey: (data: { name: string; expiresInDays?: number; userId?: string }) =>
     apiFetch<CreatedApiKeyResponse>('/api/api-keys', { method: 'POST', body: JSON.stringify(data) }),
   revokeApiKey: (keyId: string) =>
     apiFetch<{ success: boolean }>(`/api/api-keys/${keyId}`, { method: 'DELETE' }),

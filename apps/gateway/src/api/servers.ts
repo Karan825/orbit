@@ -138,8 +138,10 @@ export function createServersRouter(manager: UpstreamManager) {
         manager.addUpstream({
             id: body.slug,
             url: body.url,
+            auth: body.auth,
             timeoutMs: body.timeoutMs || 15000,
         });
+        await manager.probeUpstream(body.slug).catch(() => undefined);
 
         return c.json(
             {
@@ -185,6 +187,74 @@ export function createServersRouter(manager: UpstreamManager) {
     });
 
     /**
+     * PATCH /api/servers/:id
+     * Update/Edit an existing upstream server (name, url, auth, timeout)
+     */
+    router.patch("/:id", async (c) => {
+        const id = c.req.param("id");
+        const isUuid = UUID_REGEX.test(id);
+        const body = await c.req.json<{
+            name?: string;
+            url?: string;
+            auth?: { type?: string; header?: string; token?: string };
+            timeoutMs?: number;
+            enabled?: boolean;
+        }>();
+
+        const [server] = await db
+            .select()
+            .from(upstreamServers)
+            .where(isUuid ? eq(upstreamServers.id, id) : eq(upstreamServers.slug, id))
+            .limit(1);
+
+        if (!server) {
+            return c.json({ error: "Server not found" }, 404);
+        }
+
+        const newName = body.name ?? server.displayName;
+        const newUrl = body.url ?? server.url;
+        const newTimeout = body.timeoutMs ?? server.timeoutMs;
+        const newEnabled = body.enabled ?? server.enabled;
+
+        const [updated] = await db
+            .update(upstreamServers)
+            .set({
+                displayName: newName,
+                url: newUrl,
+                timeoutMs: newTimeout,
+                enabled: newEnabled,
+            })
+            .where(eq(upstreamServers.id, server.id))
+            .returning();
+
+        // Hot-reload upstream in manager: close old connection, reconnect with new config
+        await manager.removeUpstream(server.slug);
+        if (newEnabled) {
+            manager.addUpstream({
+                id: server.slug,
+                url: newUrl,
+                auth: body.auth,
+                timeoutMs: newTimeout,
+            });
+            await manager.probeUpstream(server.slug).catch(() => undefined);
+        }
+
+        return c.json({
+            success: true,
+            server: {
+                id: updated.id,
+                slug: updated.slug,
+                name: updated.displayName,
+                url: updated.url,
+                enabled: updated.enabled,
+                timeoutMs: updated.timeoutMs,
+                status: newEnabled ? "Connected" : "Disabled",
+                toolCount: manager.getUpstream(server.slug)?.tools.size ?? 0,
+            },
+        });
+    });
+
+    /**
      * POST /api/servers/:slug/toggle
      * Enable or disable an upstream server
      */
@@ -200,6 +270,17 @@ export function createServersRouter(manager: UpstreamManager) {
 
         if (!updated) {
             return c.json({ error: "Server not found" }, 404);
+        }
+
+        if (body.enabled) {
+            manager.addUpstream({
+                id: updated.slug,
+                url: updated.url,
+                timeoutMs: updated.timeoutMs,
+            });
+            await manager.probeUpstream(updated.slug).catch(() => undefined);
+        } else {
+            await manager.removeUpstream(updated.slug);
         }
 
         return c.json({ success: true, server: updated });

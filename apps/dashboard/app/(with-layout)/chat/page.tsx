@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useHeaderContext } from '@/app/providers/header-provider';
+import { useAuth } from '@/app/providers/auth-provider';
 import { ChatMessage, ChatToolCall } from '@/types/mcp-gateway';
 import {
   MessageSquare as ChatIcon,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function ChatPage() {
+  const { user } = useAuth();
   const { setHeaderTitle, setHeaderContent } = useHeaderContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -61,8 +63,18 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id,
+          'x-user-email': user.email,
+          'x-user-role': user.role,
+        },
         body: JSON.stringify({
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+          },
           messages: newMessages.map((m) => ({
             role: m.role,
             content: m.content,

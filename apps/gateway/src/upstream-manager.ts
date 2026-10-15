@@ -11,6 +11,7 @@ export interface UpstreamConfig {
     url: string;
     healthUrl?: string;
     timeoutMs?: number;
+    auth?: { type?: string; header?: string; headerName?: string; token?: string; configured?: boolean };
 }
 
 export interface DiscoveredTool {

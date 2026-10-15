@@ -176,21 +176,24 @@ k3d image import -c urumi \
   woo-mcp:dev
 ```
 
-### 4.3 Applying Kubernetes Manifests
+### 4.3 Deploying via Helm (Mandatory)
 
-Apply the platform manifests in order:
+The platform is packaged as a production Helm chart (`deploy/charts/mcp-gateway`). Local and production environment differences are strictly separated via `values-local.yaml` and `values-prod.yaml`.
 
+First, ensure the core storage and namespaces are initialized:
 ```bash
 kubectl apply -f deploy/manifests/01-namespaces.yaml
 kubectl apply -f deploy/manifests/02-postgres.yaml
-
-# Wait for PostgreSQL to become ready
 kubectl wait --for=condition=ready pod -l app=postgres -n urumi-platform --timeout=60s
+```
 
-kubectl apply -f deploy/manifests/04-upstreams.yaml
-kubectl apply -f deploy/manifests/05-store.yaml
-kubectl apply -f deploy/manifests/03-platform.yaml
-kubectl apply -f deploy/manifests/06-ingress.yaml
+Deploy all platform services, upstreams, network policies, and ingresses via Helm:
+```bash
+# Verify chart linting
+helm lint deploy/charts/mcp-gateway -f deploy/charts/mcp-gateway/values-local.yaml
+
+# Install or upgrade the release
+helm upgrade --install mcp-gateway deploy/charts/mcp-gateway   -f deploy/charts/mcp-gateway/values-local.yaml
 ```
 
 ### 4.4 Ingress and Hostname Resolution
@@ -368,7 +371,11 @@ kubectl create secret generic gateway-secrets \
   --from-literal=GEMINI_API_KEY="<YOUR_GEMINI_API_KEY>"
 ```
 
-Apply all manifests in sequence using the local deployment pattern. Container images can be pushed to GitHub Container Registry (GHCR) or built locally on the VPS using Docker.
+Deploy the platform onto your VPS using the production Helm values:
+
+```bash
+helm upgrade --install mcp-gateway deploy/charts/mcp-gateway   -f deploy/charts/mcp-gateway/values-prod.yaml   --set ingress.dashboardHost="app.${VPS_IP}.sslip.io"   --set ingress.storeHost="store.${VPS_IP}.sslip.io"
+```
 
 ---
 

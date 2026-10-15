@@ -13,7 +13,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/gateway ./apps/gateway
 
 # Install dependencies and build
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter @urumi/gateway...
 RUN pnpm --filter @urumi/gateway build
 
 # Production runtime stage
