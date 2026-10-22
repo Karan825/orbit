@@ -29,8 +29,22 @@ spec:
                 name: urumi-gateway
                 port:
                   number: {{ .Values.gateway.service.port }}
-          - path: /api
+          - path: /api-keys
             pathType: Prefix
+            backend:
+              service:
+                name: urumi-dashboard
+                port:
+                  number: {{ .Values.dashboard.service.port }}
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: urumi-gateway
+                port:
+                  number: {{ .Values.gateway.service.port }}
+          - path: /api
+            pathType: Exact
             backend:
               service:
                 name: urumi-gateway
