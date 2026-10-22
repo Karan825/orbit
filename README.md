@@ -432,6 +432,8 @@ For in-depth architectural analysis, refer to the accompanying engineering docum
    - In-depth rationale for SSE transport, namespace collision resolution, probe intervals, and database architecture.
 3. **Architecture Deviations Log**: [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md)
    - Formal record of intentional implementation decisions, including LLM provider selection and authentication extensions.
+4. **Demo Video Script & Operational Runbook**: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+   - Complete recording script, verbatim narration, and step-by-step DoD verification flow.
 
 ---
 
