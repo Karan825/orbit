@@ -13,6 +13,7 @@ An enterprise-grade reverse proxy, governance gateway, and operational control p
 - [7. Oracle Cloud Infrastructure (OCI) Deployment Guide](#7-oracle-cloud-infrastructure-oci-deployment-guide)
 - [8. Security Architecture and Governance](#8-security-architecture-and-governance)
 - [9. Technical Documentation Index](#9-technical-documentation-index)
+- [10. Implemented Stand-Out Items and Differentiators](#10-implemented-stand-out-items-and-differentiators)
 
 ---
 
@@ -256,6 +257,31 @@ cd apps/gateway
 pnpm test
 ```
 
+### 5.5 End-to-End Operational Journey: Placing Orders, External Clients, and Chat Agent
+
+#### 1. Placing an Order in WooCommerce
+1. Open the storefront at `http://wordpress.local:8080/`.
+2. Browse products, add an item to the shopping cart, and proceed to checkout.
+3. Complete the checkout form (cash on delivery or test gateway).
+4. Verify the order appears in the WordPress Admin portal at `http://wordpress.local:8080/wp-admin/` (Login: `user` / `SaPFz70oIT`) under **WooCommerce > Orders**.
+
+#### 2. Using the Dashboard Chat Agent
+1. Navigate to the dashboard chat interface at `http://app.localtest.me:8080/chat`.
+2. As **Alice (Admin)**, test operational commands:
+   - *"List our latest orders from WooCommerce"* -> The agent executes `woocommerce__list_orders` through the gateway.
+   - *"Check stock for our products"* -> The agent executes `woocommerce__list_products`.
+   - *"Track shipment for order #1"* -> The agent calls `fulfillment__track_shipment`.
+3. As **Bob (Member)**, test role permissions:
+   - Asking to read products or orders works normally.
+   - Asking to *"Create a new product named Test Item for $99"* attempts `woocommerce__create_product`, which the gateway immediately rejects with **HTTP 403 Forbidden**.
+4. Inspect the audit log at `http://app.localtest.me:8080/audit` to view execution records, latencies, and blocked attempts.
+
+#### 3. Connecting External MCP Clients
+External clients connect to the single authenticated gateway endpoint at `http://app.localtest.me:8080/mcp`:
+- **Claude Code**: See [Section 6.1](#61-claude-code-configuration).
+- **Cursor**: See [Section 6.2](#62-cursor-configuration).
+- **MCP Inspector**: See [Section 6.3](#63-official-mcp-inspector).
+
 ---
 
 ## 6. External Client Integration Guide
@@ -406,6 +432,19 @@ For in-depth architectural analysis, refer to the accompanying engineering docum
    - In-depth rationale for SSE transport, namespace collision resolution, probe intervals, and database architecture.
 3. **Architecture Deviations Log**: [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md)
    - Formal record of intentional implementation decisions, including LLM provider selection and authentication extensions.
+
+---
+
+## 10. Implemented Stand-Out Items and Differentiators
+
+This submission implements two primary stand-out items with complete end-to-end depth, plus cloud sizing analysis:
+
+| Stand-Out Item | Status | Primary Files & Implementation | Verification Method |
+| :--- | :--- | :--- | :--- |
+| **#2: Tool Permissions** | **Fully Complete** | `apps/gateway/src/auth/permissions.ts`<br>`apps/gateway/src/upstream-manager.ts`<br>`apps/dashboard/app/(with-layout)/servers/page.tsx` | Log in as Bob (Member). Mutating tools (`create_product`, `update_order`, etc.) are hidden from `tools/list`. Direct execution returns HTTP 403 and writes to `audit_events`. Admins (Alice) have full execution privileges. |
+| **#9: Upgrades and Rollback** | **Fully Complete** | `deploy/charts/mcp-gateway/templates/gateway.yaml`<br>`deploy/charts/mcp-gateway/values-local.yaml`<br>`docs/DEPLOYMENT.md` | Rolling updates configured with `maxSurge: 25%`, `maxUnavailable: 25%`, and `/healthz` readiness probes. Verified with `helm upgrade --install`, simulated broken release (`dev-broken`), and `helm rollback mcp-gateway 2`. |
+| **#1: Production VPS Deployment** | **Documented & Configured** | `deploy/charts/mcp-gateway/values-prod.yaml`<br>`docs/DEPLOYMENT.md` | Targeted for Oracle Cloud Always Free VPS (Ubuntu 22.04 LTS). Parameterized values for public ingress (`sslip.io`), hardened resource bounds, and comprehensive hardware sizing/kernel bottleneck analysis. |
+| **Dynamic Upstream CRUD** | **Fully Complete** | `apps/gateway/src/api/servers.ts`<br>`apps/dashboard/app/(with-layout)/servers/page.tsx` | UI modal and backend API allowing operators to Add, Edit, Toggle, and Remove upstream MCP servers dynamically at runtime without pod restarts. |
 
 ---
 
