@@ -72,6 +72,8 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 >
 > *For security, only the Traefik Ingress is exposed to public traffic. Upstream MCP servers and databases run as internal ClusterIP services and cannot be reached from outside the cluster. Kubernetes NetworkPolicies enforce default-deny ingress rules so upstreams cannot talk to each other or access the store database directly.*
 >
+> *Client API keys are stored as SHA-256 cryptographic digests with server-side pepper, while upstream credentials like WooCommerce OAuth keys are stored encrypted in PostgreSQL and decrypted in memory only during active calls.
+
 > *All workloads define strict CPU and memory requests and limits, with dual `/healthz` readiness and liveness probes ensuring zero-downtime rolling updates."*
 
 ---
@@ -152,7 +154,9 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 >
 > *Notice this critical security differentiator: When Bob requests the tool catalog, our gateway policy engine filters out all mutating tools. Bob can only see read tools like `list_orders` and `track_shipment`. If Bob attempts to execute `create_product` directly via JSON-RPC, the gateway rejects it with HTTP 403 Forbidden.*
 >
-> *Bob invokes `woocommerce__list_orders`, and the orders are returned instantly.*
+> *Bob invokes `woocommerce__list_orders`, and the orders are returned instantly.
+
+> *Here is how a tool call travels under the hood: The client's JSON-RPC packet hits the Traefik Ingress, routes to the gateway where Bob's bearer token is authenticated against PostgreSQL in constant time. The gateway resolves the deterministic `woocommerce__` prefix to prevent tool namespace collisions, attaches the upstream credential in-memory, and executes the call against `woo-mcp` with an explicit 15-second AbortSignal timeout. The result is written to our audit table and streamed back to Bob via SSE.*
 >
 > *Now, we run an operation spanning two distinct upstream servers: we query an order from WooCommerce, and then pass its details to `fulfillment__track_shipment` on our Fulfillment server. The client communicates with only one gateway, while the gateway transparently routes between independent upstream pods."*
 
@@ -188,7 +192,9 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 >
 > *First, key revocation: In the dashboard, I revoke Bob's API key. Returning to the MCP client, the very next call is instantly rejected with HTTP 401 Unauthorized.*
 >
-> *Second, dynamic server management: I navigate to our Servers page and toggle Supplier MCP to Disabled. The gateway unloads its SSE connection, and its tools instantly disappear from external clients without requiring a gateway restart.*
+> *Second, dynamic server management: I navigate to our Servers page and toggle Supplier MCP to Disabled. The gateway unloads its SSE connection, and its tools instantly disappear from external clients without requiring a gateway restart.
+
+> *What if an admin registers a malicious or compromised MCP server? The gateway hardens against prompt injection: tool descriptions are length-capped at 1,024 characters, control characters are stripped, tool outputs are wrapped in strict `<tool_output>` XML boundary tags, and NetworkPolicies block egress to cloud metadata endpoints like `169.254.169.254`.*
 >
 > *Third, dead upstream isolation: What happens if an upstream crashes in production? Let's simulate a crash by scaling `fulfillment-mcp` down to zero replicas.*
 >
@@ -235,7 +241,9 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 #### Verbatim Voiceover:
 > *"To conclude, let's look at our production deployment and upgrade story.*
 >
-> *The entire system is packaged as a unified Helm chart with environment separation via `values-local.yaml` for local development and `values-prod.yaml` for production cloud VPS deployment.*
+> *The entire system is packaged as a unified Helm chart with environment separation via `values-local.yaml` for local development and `values-prod.yaml` for production cloud VPS deployment.
+
+> *Between local and VPS, Helm parameterizes everything: domain routing switches from wildcard `localtest.me` to production FQDNs on `sslip.io` with Let's Encrypt TLS, resource limits are hardened to 250m CPU and 256Mi RAM to prevent OOM on micro-instances, and storage classes map to cloud block volumes.*
 >
 > *Here on the terminal, `helm history` shows our deployed revisions. Let's demonstrate zero-downtime rolling upgrades and automated failure defense.*
 >
