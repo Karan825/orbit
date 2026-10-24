@@ -1,8 +1,8 @@
 # MCP Enterprise Gateway: Master Demo Video Teleprompter & Recording Guide
 
-This document is your **screen-by-screen choreography guide and verbatim teleprompter**. 
+This document is your **screen-by-screen choreography guide and verbatim teleprompter**.
 
-It is written in natural, conversational spoken English—the way a senior platform engineer actually speaks during an architecture review or client demo. There are no robotic bullet points or stiff headings to read aloud. Every sentence flows naturally into the next, with precise instructions on what to show, where to click, and what commands to run at that exact second.
+It is written in natural, conversational spoken English—the way a senior platform engineer talks during an architecture review or client demo. There are no robotic bullet points or stiff headings to read aloud. Every sentence flows naturally into the next, with precise instructions on what to show, where to click, and what commands to run at that exact second.
 
 ---
 
@@ -11,8 +11,8 @@ It is written in natural, conversational spoken English—the way a senior platf
 * **Submission Link**: [Google Form](https://forms.gle/nftwgyNeenSDmiRb6)
 * **GitHub Repository**: `https://github.com/Karan825/orbit.git`
 * **Target Branch**: `feat/mcp-gateway-production`
-* **Target Video Length**: 7 to 8.5 minutes
-* **Resolution**: 1080p (Full Screen or clean 50/50 split between Browser and Terminal)
+* **Target Video Length**: 7.5 to 8.5 minutes
+* **Resolution**: 1080p (Full Screen or clean split between Browser and Terminal)
 
 ---
 
@@ -24,12 +24,52 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 +------------------------------------------+------------------------------------------+
 | GOOGLE CHROME (Tabs arranged in order)   | TERMINAL (WSL Ubuntu)                    |
 |                                          |                                          |
-| Tab 1: http://wordpress.local:8080/      | Current directory:                       |
-| Tab 2: http://wordpress.local:8080/wp-admin/ /home/karan/mcp-gateway                |
-| Tab 3: http://app.localtest.me:8080/login|                                          |
-| Tab 4: MCP Inspector (localhost:5173     | Cluster running:                         |
-|        or npx @modelcontextprotocol/...) | docker start k3d-urumi-server-0 ...      |
+| Tab 0: Architecture Diagram (README.md)  | Current directory:                       |
+| Tab 1: http://wordpress.local:8080/      | /home/karan/mcp-gateway                  |
+| Tab 2: http://wordpress.local:8080/wp-admin/                                        |
+| Tab 3: http://app.localtest.me:8080/login| Cluster running:                         |
+| Tab 4: MCP Inspector (localhost:5173     | docker start k3d-urumi-server-0 ...      |
+|        or npx @modelcontextprotocol/...) |                                          |
 +------------------------------------------+------------------------------------------+
+```
+
+---
+
+## System Architecture Visual Reference
+
+*(Keep this open in Tab 0 or split-screen during the first 45 seconds of your demo)*:
+
+```
+[ External Clients ]         [ Operations Team ]
+ (Claude, Cursor, Inspector)   (Dashboard Web UI)
+         │                              │
+         └──────────────┬───────────────┘
+                        │ HTTP / SSE
+                        ▼
+         [ Traefik Ingress Controller ]
+           app.localtest.me:8080
+                        │
+         ┌──────────────┴──────────────┐
+         ▼                             ▼
+┌───────────────────────────┐ ┌───────────────────────────┐
+│       Urumi Gateway       │ │      Urumi Dashboard      │
+│  (Hono + TypeScript +     │ │  (Next.js 15 App Router + │
+│   MCP Protocol Engine)    │ │   Chat & Server CRUD)     │
+└─────────────┬─────────────┘ └───────────────────────────┘
+              │                             │
+              ├─────────────────────────────┘
+              ▼
+   [ PostgreSQL 16 Database ] (Write-Ahead Audit, API Keys, RBAC)
+   ──────────────────────────────────────────────────────────────
+              │ Cross-Namespace Secure Upstream Proxying
+              ├─────────────────────────────┐
+              ▼                             ▼
+┌───────────────────────────┐ ┌───────────────────────────┐
+│  Namespace: urumi-store   │ │ Namespace: mcp-upstreams  │
+│  • woo-mcp (Port 3001)    │ │  • fulfillment-mcp (3002) │
+│  • WordPress (Port 8080)  │ │  • supplier-mcp (3003)    │
+│  • MariaDB Database       │ │  • Synthetic 3PL APIs     │
+└───────────────────────────┘ └───────────────────────────┘
 ```
 
 ---
@@ -38,49 +78,55 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 
 ---
 
-### ACT 1: Architecture, Storage, and Security Boundaries
-**Timecode: 0:00 – 1:30**
+### ACT 1: System Design, Architecture & Kubernetes Topology
+**Timecode: 0:00 – 1:45**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
-1. Start with your **Terminal** taking up the full screen.
-2. Type and run:
-   ```bash
-   kubectl get pods,pvc,ingress -A
-   ```
-3. Use your mouse cursor to gently circle the three namespace groupings:
-   * Circle `urumi-platform` pods (`urumi-gateway`, `urumi-dashboard`, `postgres-0`).
-   * Circle `urumi-store` pods (`wordpress`, `mariadb`, `woo-mcp`).
-   * Circle `mcp-upstreams` pods (`fulfillment-mcp`, `supplier-mcp`).
-4. Next, hover your cursor over the **PVC** lines to show persistent storage, then hover over the **Ingress** lines showing `app.localtest.me` and `wordpress.local`.
-5. Now type and run:
-   ```bash
-   kubectl get networkpolicy -A
-   ```
-6. Hover over the policy names (`allow-gateway-to-postgres`, `allow-gateway-to-upstreams`).
+1. **0:00 – 0:45**: Start on **Tab 0** showing the **System Architecture Diagram** full-screen (from `README.md` or a clean diagram viewer).
+   * As you introduce the system, use your mouse to highlight the **Gateway in the center**, then point out the **External Clients** on top, and the **Upstream MCP Servers** at the bottom.
+   * Highlight the **PostgreSQL database** when mentioning Write-Ahead Auditing.
+2. **0:45 – 1:45**: Smoothly switch windows to your **Terminal**.
+   * Run:
+     ```bash
+     kubectl get pods,pvc,ingress -A
+     ```
+   * Use your mouse cursor to gently circle the three namespace groupings:
+     * Circle `urumi-platform` pods (`urumi-gateway`, `urumi-dashboard`, `postgres-0`).
+     * Circle `urumi-store` pods (`wordpress`, `mariadb`, `woo-mcp`).
+     * Circle `mcp-upstreams` pods (`fulfillment-mcp`, `supplier-mcp`).
+   * Hover over the **PVC** lines showing persistent storage for Postgres and WordPress.
+   * Hover over the **Ingress** lines showing `app.localtest.me` and `wordpress.local`.
+   * Now run:
+     ```bash
+     kubectl get networkpolicy -A
+     ```
+   * Hover over the policy names (`allow-gateway-to-postgres`, `allow-gateway-to-upstreams`).
 
 ---
 
 #### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
 > *"Hi everyone! Welcome to the demo of our Model Context Protocol Enterprise Gateway and Control Plane running on Kubernetes.*
 >
-> *Before we dive into the live user journeys, I want to briefly walk you through how the platform is architected under the hood.*
+> *Before jumping into the live user flows, I want to start with the core system design and explain why this architecture is built the way it is.*
 >
-> *As you can see here in the terminal, our cluster is strictly segregated across three distinct namespaces:*
+> *When connecting AI models to enterprise tools, standard reverse proxies like Nginx or Envoy aren't enough. A generic proxy only moves raw HTTP packets—it cannot inspect JSON-RPC payloads, it cannot merge schemas from five different tool servers into one catalog, it cannot rename colliding tools, and it cannot enforce role-based permissions on individual tool calls.*
 >
-> *First, we have `urumi-platform`, which hosts our core control plane. This includes our Gateway—built in TypeScript with Hono—which terminates downstream client MCP connections, aggregates upstream tool catalogs, and handles policy enforcement. Alongside it, we have our Next.js 15 administrative dashboard and a PostgreSQL 16 database backed by a PersistentVolumeClaim, storing user sessions, hashed API keys, and an immutable audit ledger.*
+> *That’s why our gateway acts as a **dual-sided MCP protocol terminator**: it acts as an MCP Server to external clients like Claude and Cursor, and acts as an MCP Client to upstream pods like WooCommerce and Fulfillment. We chose **Hono** on TypeScript for its high-throughput streaming and native Server-Sent Events support.*
 >
-> *Second, we have `urumi-store`, which runs an independent e-commerce environment with WooCommerce, MariaDB, and our custom `woo-mcp` adapter that speaks to WordPress using OAuth 1.0a.*
+> *Notice our data layer: We strictly separated our platform database—PostgreSQL 16—from our e-commerce store database—MariaDB. In PostgreSQL, we implement **Write-Ahead Auditing**: whenever a tool call arrives, the audit record is created with a PENDING status before the request is ever sent upstream. Even if a server crashes mid-flight, unrecorded executions are physically impossible.*
 >
-> *And third, we have `mcp-upstreams`, where we host our synthetic partner services, like Fulfillment and Supplier logistics.*
+> *Now let's switch to the terminal and see how this design maps directly to our live Kubernetes cluster.*
 >
-> *If we look at networking and isolation, notice that only our Traefik Ingress is exposed to public traffic through `app.localtest.me`. Everything else—the databases, the upstream MCP servers—runs entirely as internal ClusterIP services. To enforce this boundary, we’ve applied zero-trust NetworkPolicies across the namespaces, meaning even if someone compromises an upstream pod, it physically cannot establish lateral connections to our WooCommerce database or other internal components.*
+> *As you can see, our cluster is segregated across three dedicated namespaces: `urumi-platform` for the gateway and dashboard, `urumi-store` for WooCommerce and its dedicated `woo-mcp` adapter, and `mcp-upstreams` for third-party logistics.*
 >
-> *Finally, sensitive credentials like database passwords and Gemini LLM keys are injected natively via Kubernetes Secrets, and every container runs with strict CPU and memory limits, protected by dual `/healthz` readiness and liveness probes."*
+> *Notice our security boundaries: Only the Traefik Ingress is public. All upstream MCP servers and databases run as private ClusterIP services. To prevent lateral movement, zero-trust NetworkPolicies block direct pod-to-pod cross-talk, meaning an upstream pod cannot reach the store database.*
+>
+> *Sensitive keys are injected via Kubernetes Secrets, and every container runs with strict CPU and memory limits, protected by dual `/healthz` readiness and liveness probes."*
 
 ---
 
 ### ACT 2: Baseline Storefront Checkout & Order Placement
-**Timecode: 1:30 – 2:30**
+**Timecode: 1:45 – 2:45**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
 1. Switch to your browser, **Tab 1** (`http://wordpress.local:8080/`).
@@ -106,7 +152,7 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 ---
 
 ### ACT 3: AI Chat Agent as User A (Admin Alice)
-**Timecode: 2:30 – 4:00**
+**Timecode: 2:45 – 4:15**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
 1. Switch to **Tab 3** (`http://app.localtest.me:8080/login`).
@@ -149,7 +195,7 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 ---
 
 ### ACT 4: External MCP Client as User B (Member Bob) & RBAC
-**Timecode: 4:00 – 5:30**
+**Timecode: 4:15 – 5:45**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
 1. In the Dashboard sidebar, navigate to **API Keys** (`http://app.localtest.me:8080/api-keys`).
@@ -191,7 +237,7 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 ---
 
 ### ACT 5: Team Governance, Upstream Resilience & Failure Isolation
-**Timecode: 5:30 – 6:45**
+**Timecode: 5:45 – 7:00**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
 1. **Revoke User B's Key**:
@@ -245,7 +291,7 @@ Open these browser tabs in Google Chrome (left window) and your terminal (right 
 ---
 
 ### ACT 6: Production Story, Helm Upgrades & Zero-Downtime Rollback
-**Timecode: 6:45 – 8:15**
+**Timecode: 7:00 – 8:30**
 
 #### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
 1. Bring your **Terminal** front and center.
