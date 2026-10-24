@@ -35,7 +35,7 @@ The platform runs as a multi-tier containerized system orchestrated on Kubernete
       |                                     |
       v                                     v
 [ Urumi Gateway ]                  [ Urumi Dashboard ]
-(Fastify + SSE + Proxy Engine)     (Next.js 15 App Router)
+(Hono + SSE + Proxy Engine)     (Next.js 15 App Router)
 Namespace: urumi-platform          Namespace: urumi-platform
       |                                     |
       +------------------+------------------+
@@ -100,7 +100,7 @@ Namespace: urumi-store
 │   │   ├── app/              # App Router routes (overview, servers, api-keys, audit, chat, login)
 │   │   ├── components/       # UI component library
 │   │   └── Dockerfile        # Multi-stage production container build
-│   └── gateway/              # Fastify MCP gateway server
+│   └── gateway/              # Hono MCP gateway server
 │       ├── src/
 │       │   ├── auth/         # API key validation, hashing, and RBAC middleware
 │       │   ├── audit/        # Database audit log writer
@@ -250,7 +250,7 @@ node scripts/test-query.mjs
 
 ### 5.4 Unit and Integration Test Suite
 
-Run the Fastify gateway test suite inside the workspace:
+Run the Hono gateway test suite inside the workspace:
 
 ```bash
 cd apps/gateway

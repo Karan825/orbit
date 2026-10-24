@@ -66,7 +66,7 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 > *"Hello! In this demo, I will walk you through the Model Context Protocol (MCP) Enterprise Gateway and Control Plane that I built on Kubernetes.*
 >
 > *Before jumping into the live user flows, let's look at the underlying Kubernetes topology. Everything is containerized and strictly isolated across three namespaces:*
-> 1. *`urumi-platform`: Hosts our core control plane—the Fastify MCP Reverse Gateway, the Next.js 15 administrative dashboard, and a PostgreSQL 16 database storing encrypted credentials, RBAC rules, and tamper-evident audit logs.*
+> 1. *`urumi-platform`: Hosts our core control plane—the Hono MCP Reverse Gateway, the Next.js 15 administrative dashboard, and a PostgreSQL 16 database storing encrypted credentials, RBAC rules, and tamper-evident audit logs.*
 > 2. *`urumi-store`: Runs an independent WooCommerce e-commerce stack with MariaDB and a dedicated WooCommerce MCP adapter.*
 > 3. *`mcp-upstreams`: Contains our partner services, including Fulfillment MCP and Supplier MCP.*
 >
