@@ -1,294 +1,319 @@
-# MCP Gateway Demo Video & Submission Guide
+# MCP Enterprise Gateway: Master Demo Video Teleprompter & Recording Guide
 
-This document contains the complete, end-to-end recording runbook, spoken script, terminal commands, and technical reference for the submission demo video.
+This document is your **screen-by-screen choreography guide and verbatim teleprompter**. 
 
-**Submission Form**: [Google Form](https://forms.gle/nftwgyNeenSDmiRb6)  
-**Repository**: `https://github.com/Karan825/orbit.git`  
-**Branch**: `feat/mcp-gateway-production`  
-**Target Duration**: 7 to 9 minutes  
+It is written in natural, conversational spoken English—the way a senior platform engineer actually speaks during an architecture review or client demo. There are no robotic bullet points or stiff headings to read aloud. Every sentence flows naturally into the next, with precise instructions on what to show, where to click, and what commands to run at that exact second.
 
 ---
 
-## 1. Pre-Flight Checklist
+## Quick Reference Summary
 
-Before pressing **Record**, prepare the following browser tabs and terminal windows:
+* **Submission Link**: [Google Form](https://forms.gle/nftwgyNeenSDmiRb6)
+* **GitHub Repository**: `https://github.com/Karan825/orbit.git`
+* **Target Branch**: `feat/mcp-gateway-production`
+* **Target Video Length**: 7 to 8.5 minutes
+* **Resolution**: 1080p (Full Screen or clean 50/50 split between Browser and Terminal)
 
-### Browser Windows / Tabs
-1. **Storefront**: `http://wordpress.local:8080/`
-2. **WooCommerce Admin**: `http://wordpress.local:8080/wp-admin/` (Logged in as `user` / `SaPFz70oIT` on the **WooCommerce > Orders** page).
-3. **Control Plane Login**: `http://app.localtest.me:8080/login`
-4. **Dashboard Chat**: (Opened upon login as Alice: `http://app.localtest.me:8080/chat`).
-5. **Dashboard Management Pages**:
-   * Upstream Servers: `http://app.localtest.me:8080/servers`
-   * API Keys: `http://app.localtest.me:8080/api-keys`
-   * Audit Logs: `http://app.localtest.me:8080/audit`
-6. **External Client (MCP Inspector)**:
-   * Start in a secondary terminal:
+---
+
+## Pre-Recording Screen Setup
+
+Open these browser tabs in Google Chrome (left window) and your terminal (right window):
+
+```
++------------------------------------------+------------------------------------------+
+| GOOGLE CHROME (Tabs arranged in order)   | TERMINAL (WSL Ubuntu)                    |
+|                                          |                                          |
+| Tab 1: http://wordpress.local:8080/      | Current directory:                       |
+| Tab 2: http://wordpress.local:8080/wp-admin/ /home/karan/mcp-gateway                |
+| Tab 3: http://app.localtest.me:8080/login|                                          |
+| Tab 4: MCP Inspector (localhost:5173     | Cluster running:                         |
+|        or npx @modelcontextprotocol/...) | docker start k3d-urumi-server-0 ...      |
++------------------------------------------+------------------------------------------+
+```
+
+---
+
+## The Video Recording Script (Synchronized Teleprompter)
+
+---
+
+### ACT 1: Architecture, Storage, and Security Boundaries
+**Timecode: 0:00 – 1:30**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. Start with your **Terminal** taking up the full screen.
+2. Type and run:
+   ```bash
+   kubectl get pods,pvc,ingress -A
+   ```
+3. Use your mouse cursor to gently circle the three namespace groupings:
+   * Circle `urumi-platform` pods (`urumi-gateway`, `urumi-dashboard`, `postgres-0`).
+   * Circle `urumi-store` pods (`wordpress`, `mariadb`, `woo-mcp`).
+   * Circle `mcp-upstreams` pods (`fulfillment-mcp`, `supplier-mcp`).
+4. Next, hover your cursor over the **PVC** lines to show persistent storage, then hover over the **Ingress** lines showing `app.localtest.me` and `wordpress.local`.
+5. Now type and run:
+   ```bash
+   kubectl get networkpolicy -A
+   ```
+6. Hover over the policy names (`allow-gateway-to-postgres`, `allow-gateway-to-upstreams`).
+
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"Hi everyone! Welcome to the demo of our Model Context Protocol Enterprise Gateway and Control Plane running on Kubernetes.*
+>
+> *Before we dive into the live user journeys, I want to briefly walk you through how the platform is architected under the hood.*
+>
+> *As you can see here in the terminal, our cluster is strictly segregated across three distinct namespaces:*
+>
+> *First, we have `urumi-platform`, which hosts our core control plane. This includes our Gateway—built in TypeScript with Hono—which terminates downstream client MCP connections, aggregates upstream tool catalogs, and handles policy enforcement. Alongside it, we have our Next.js 15 administrative dashboard and a PostgreSQL 16 database backed by a PersistentVolumeClaim, storing user sessions, hashed API keys, and an immutable audit ledger.*
+>
+> *Second, we have `urumi-store`, which runs an independent e-commerce environment with WooCommerce, MariaDB, and our custom `woo-mcp` adapter that speaks to WordPress using OAuth 1.0a.*
+>
+> *And third, we have `mcp-upstreams`, where we host our synthetic partner services, like Fulfillment and Supplier logistics.*
+>
+> *If we look at networking and isolation, notice that only our Traefik Ingress is exposed to public traffic through `app.localtest.me`. Everything else—the databases, the upstream MCP servers—runs entirely as internal ClusterIP services. To enforce this boundary, we’ve applied zero-trust NetworkPolicies across the namespaces, meaning even if someone compromises an upstream pod, it physically cannot establish lateral connections to our WooCommerce database or other internal components.*
+>
+> *Finally, sensitive credentials like database passwords and Gemini LLM keys are injected natively via Kubernetes Secrets, and every container runs with strict CPU and memory limits, protected by dual `/healthz` readiness and liveness probes."*
+
+---
+
+### ACT 2: Baseline Storefront Checkout & Order Placement
+**Timecode: 1:30 – 2:30**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. Switch to your browser, **Tab 1** (`http://wordpress.local:8080/`).
+2. Click on any visible product (for example, the *Album* or *Hoodie*).
+3. Click **Add to Cart**, then click **View Cart** or **Checkout**.
+4. Fill in dummy checkout details (e.g., First Name: `John`, Last Name: `Doe`, Address: `123 Main St`).
+5. Select the **Cash on Delivery** radio button.
+6. Click **Place Order**. Wait 1 second for the order confirmation screen showing the Order Number (e.g., *Order #12*).
+7. Switch to **Tab 2** (`http://wordpress.local:8080/wp-admin/` -> **WooCommerce > Orders**).
+8. Refresh the page. Point your mouse to the newly created order in *Processing* status.
+
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"To establish our baseline, let's confirm that the e-commerce data plane is operational.*
+>
+> *I'll jump over to our storefront running at `wordpress.local:8080`. I'll pick a product, add it to the cart, and proceed to checkout.*
+>
+> *For testing convenience, we have Cash on Delivery enabled, so I'll select that and place the order right now.*
+>
+> *Now, switching tabs into the WordPress administrative panel under WooCommerce Orders, I'll refresh the table... and as you can see, our new order has arrived cleanly with a status of Processing. Our baseline store is healthy and ready to receive traffic from our gateway."*
+
+---
+
+### ACT 3: AI Chat Agent as User A (Admin Alice)
+**Timecode: 2:30 – 4:00**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. Switch to **Tab 3** (`http://app.localtest.me:8080/login`).
+2. Click the **Login as Admin (Alice)** button.
+3. In the left navigation sidebar, click on **Chat** (`http://app.localtest.me:8080/chat`).
+4. Click into the chat input box and type:
+   ```text
+   Create a new product named "Mechanical Keyboard" with regular price "99"
+   ```
+5. Hit Enter. Wait 2–3 seconds while Gemini processes the prompt and the gateway executes the tool.
+6. The chat agent will respond with a confirmation message (e.g., *"Successfully created product Mechanical Keyboard with ID 15 and price $99"*).
+7. Switch to **Tab 1** (`http://wordpress.local:8080/shop/` or the storefront home page) and press Refresh.
+8. Point your cursor to the newly created **Mechanical Keyboard** listed for **$99**.
+9. Click on it, click **Add to Cart**, proceed to checkout, select **Cash on Delivery**, and click **Place Order** (Name: `Alice Admin`).
+10. Switch back to the **Dashboard Chat** tab and type:
+    ```text
+    What orders came in today?
+    ```
+11. Hit Enter. The agent will call `woocommerce__list_orders` and render the order details, showing the purchase of the Mechanical Keyboard.
+
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"Now let's see how our AI Chat Agent operates when authenticated as User A—our administrator, Alice.*
+>
+> *I'll log in as Alice with a single click and open our operations chat interface. The chat agent runs directly in-process with the gateway, using Gemini to introspect available tool schemas and execute them through the gateway pipeline as the logged-in user.*
+>
+> *Let's ask it to create inventory: 'Create a new product named Mechanical Keyboard with regular price 99'.*
+>
+> *Under the hood, the model planned the request, identified `woocommerce__create_product`, verified that Alice's session holds the admin role, and executed the call through our gateway. And there's our confirmation.*
+>
+> *Let's verify on the actual storefront: I'll switch back to the shop tab, hit refresh... and right there is our brand-new Mechanical Keyboard for $99.*
+>
+> *Now, let's place an order for this exact keyboard directly on the storefront by hand... order placed.*
+>
+> *Returning to the chat agent, I'll ask: 'What orders came in today?'*
+>
+> *The model invokes `woocommerce__list_orders`, parses the response, and displays the exact order we just placed with customer and line-item details. The chat agent is completely synchronized with the store."*
+
+---
+
+### ACT 4: External MCP Client as User B (Member Bob) & RBAC
+**Timecode: 4:00 – 5:30**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. In the Dashboard sidebar, navigate to **API Keys** (`http://app.localtest.me:8080/api-keys`).
+2. Show the API keys table. Copy the key for **Bob (Member)** (or click Create Key for Bob, and copy the `urk_...` token).
+3. Switch to your **MCP Inspector tab** (`localhost:5173` or open terminal where `npx @modelcontextprotocol/inspector` is running).
+4. In the Inspector connection configuration:
+   * Transport: **SSE**
+   * URL: `http://app.localtest.me:8080/mcp`
+   * Header: `Authorization: Bearer <PASTE_BOBS_KEY>` (or use `?apiKey=<KEY>` in URL).
+5. Click **Connect**.
+6. Click on **List Tools**:
+   * Slowly scroll through the tools list.
+   * Point your mouse to the tools: you will see `woocommerce__list_orders`, `woocommerce__get_product`, `fulfillment__track_shipment`, `supplier__check_stock`.
+   * **Crucial Moment (Differentiator 2)**: Highlight on screen that mutating tools (`create_product`, `update_order`, `update_shipment`, `create_restock_request`) are **completely absent** from Bob's tool catalog!
+7. In the Inspector, select the tool `woocommerce__list_orders`, enter arguments `{ "limit": 5 }`, and click **Run Tool**.
+8. Show the JSON response returning orders cleanly.
+9. Now demonstrate a cross-server tool execution:
+   * Select `fulfillment__track_shipment` from the tool dropdown.
+   * Enter arguments `{ "order_id": 1 }` or `{ "tracking_number": "TRK-001" }`.
+   * Click **Run Tool**. Show the tracking information returned from the synthetic Fulfillment service.
+
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"Now let's switch personas to User B—our team member, Bob—and connect through an external MCP client.*
+>
+> *In the dashboard, I'll copy Bob's API key and open the official MCP Inspector. I configure it to connect over Server-Sent Events to our single public gateway endpoint at `app.localtest.me:8080/mcp`, passing Bob's bearer token.*
+>
+> *Once connected, let's inspect the discovered tools list. Notice something very important here:*
+>
+> *Because Bob has the 'member' role, our gateway policy engine dynamically filtered out all mutating tools. Bob can see read-only tools like `list_orders` and `track_shipment`, but tools like `create_product` or `update_order` are completely hidden. If Bob attempted to craft a raw JSON-RPC request to invoke `create_product`, the gateway's policy validator would immediately reject it with HTTP 403 Forbidden.*
+>
+> *Let's run `woocommerce__list_orders`... and there are today's orders returned over SSE.*
+>
+> *Here is what happened under the hood: The client's JSON-RPC packet hit the Traefik Ingress and routed to our Hono gateway. The gateway authenticated Bob's token against PostgreSQL in constant time, injected the upstream WooCommerce OAuth credential in-memory, executed the call against `woo-mcp` with an explicit 15-second timeout, and logged the event before streaming the result back.*
+>
+> *Now, let's run a tool on a completely different upstream: I'll select `fulfillment__track_shipment` and execute it. In the same session, through the same endpoint, the client seamlessly communicates across two separate upstream services without needing to know anything about their individual endpoints or authentication requirements."*
+
+---
+
+### ACT 5: Team Governance, Upstream Resilience & Failure Isolation
+**Timecode: 5:30 – 6:45**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. **Revoke User B's Key**:
+   * Switch to the Dashboard **API Keys** page (`http://app.localtest.me:8080/api-keys`).
+   * Find Bob's key and click the red **Revoke** button.
+   * Switch back to the MCP Inspector and immediately click **Run Tool** again.
+   * Show the error message on screen: **HTTP 401 Unauthorized** (API key has been revoked).
+2. **Disable an Upstream Server**:
+   * Switch to the Dashboard **Servers** page (`http://app.localtest.me:8080/servers`).
+   * Find **Supplier MCP** and click the green toggle switch to turn it **Disabled (Inactive)**.
+   * Switch to the Inspector, refresh or list tools -> point out that `supplier__...` tools have completely vanished from the catalog.
+3. **Simulate a Dead Upstream (Kill Pod)**:
+   * Bring up your Terminal and run:
      ```bash
-     npx @modelcontextprotocol/inspector
+     kubectl scale deployment fulfillment-mcp -n mcp-upstreams --replicas=0
      ```
-   * Or connect via Claude Code / Cursor.
+   * Wait 10 seconds (giving the active background probe time to detect the drop).
+   * In the browser, refresh the **Servers** page. Point your mouse to `fulfillment-mcp`: its status badge has turned red and displays **Unreachable (Connection Refused)**.
+   * Point out that **WooCommerce is still green and Connected**!
+   * In the Terminal, restore the pod:
+     ```bash
+     kubectl scale deployment fulfillment-mcp -n mcp-upstreams --replicas=1
+     ```
+   * Wait 5 seconds, refresh the Servers page -> `fulfillment-mcp` turns green and says **Connected** again.
+4. **Audit Trail Inspection**:
+   * In the Dashboard sidebar, click **Audit Logs** (`http://app.localtest.me:8080/audit`).
+   * Scroll down the live table. Point out the columns:
+     * User attribution: Show `Alice` (Admin) for product creation vs. `Bob` (Member) for order queries.
+     * Latency measurements in milliseconds (e.g., `45ms`, `120ms`).
+     * Status codes: Show `SUCCESS` records and the `BLOCKED` / `UNAUTHORIZED` records.
 
-### Primary Terminal
-* Working directory: `/home/karan/mcp-gateway`
-* Ensure the local cluster is running:
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"Now let's test administrative control, resilience, and blast-radius containment.*
+>
+> *First, token revocation: What happens if a team member's key is compromised? In the dashboard, I'll click Revoke on Bob's key. Returning to the MCP client, the very next call is instantly rejected with HTTP 401 Unauthorized. Key revocation is immediate and enforces zero caching.*
+>
+> *Second, dynamic server management: If an upstream needs maintenance, I can go to our Servers page and toggle Supplier MCP to Disabled. The gateway unloads its SSE connection, and its tools immediately disappear from client catalogs without requiring a gateway restart.*
+>
+> *What if an administrator accidentally connects an untrusted or compromised MCP server? The gateway protects the platform: tool descriptions are length-capped at 1,024 characters, control characters are stripped, tool outputs are wrapped in strict XML boundary tags to prevent LLM prompt injection, and NetworkPolicies block egress to cloud metadata endpoints like `169.254.169.254`.*
+>
+> *Third, dead upstream isolation: What happens if an upstream pod crashes in production? Let's simulate that by scaling our Fulfillment deployment down to zero replicas.*
+>
+> *Our gateway runs an active background health probe every 10 seconds. Within two probe intervals, the dashboard automatically flags Fulfillment as 'Unreachable'. But notice the critical architecture benefit: WooCommerce and Supplier tools remain completely unaffected and operational, and our gateway never drops client connections.*
+>
+> *When I scale Fulfillment back up, the probe detects recovery and restores the tools automatically.*
+>
+> *Finally, let's look at the Audit Log. Every single action we've executed today—Alice's product creation, Bob's order queries, and the blocked unauthorized attempts—is immutably recorded in PostgreSQL with exact user attribution, timestamps, latencies, and execution outcomes."*
+
+---
+
+### ACT 6: Production Story, Helm Upgrades & Zero-Downtime Rollback
+**Timecode: 6:45 – 8:15**
+
+#### [VISUAL CHOREOGRAPHY: WHAT TO SHOW ON SCREEN]
+1. Bring your **Terminal** front and center.
+2. Run:
+   ```bash
+   helm history mcp-gateway -n urumi-platform
+   ```
+   Show Revision 1 and Revision 2.
+3. Now simulate a broken upgrade by deploying an invalid image tag:
+   ```bash
+   helm upgrade mcp-gateway deploy/charts/mcp-gateway      -f deploy/charts/mcp-gateway/values-local.yaml      --set gateway.image.tag="dev-broken-build"      -n urumi-platform
+   ```
+4. Immediately check the pods:
+   ```bash
+   kubectl get pods -n urumi-platform
+   ```
+   Point your mouse cursor to the terminal output:
+   * The new pod shows `ImagePullBackOff` or `ErrImagePull`.
+   * **Highlight the critical point**: The old working pod (`urumi-gateway-...`) is **still 1/1 Running and handling traffic**!
+5. Switch to Chrome and refresh `http://app.localtest.me:8080/overview` to visually prove the dashboard is still 100% online.
+6. Return to the Terminal and execute an instant rollback:
+   ```bash
+   helm rollback mcp-gateway 2 -n urumi-platform
+   ```
+7. Check the history and pods:
+   ```bash
+   helm history mcp-gateway -n urumi-platform
+   kubectl get pods -n urumi-platform
+   ```
+   Show that a new Revision was deployed referencing Revision 2, the broken pod was terminated, and all pods are `1/1 Running`.
+
+---
+
+#### [VERBATIM VOICE-OVER: WHAT YOU SAY NATURALLY]
+> *"To wrap up, let's look at our production deployment and upgrade strategy.*
+>
+> *The entire platform is packaged as a production-grade Helm chart. We maintain strict environment separation using `values-local.yaml` for local k3d clusters and `values-prod.yaml` for production cloud VPS environments.*
+>
+> *Between local and VPS, Helm parameterizes everything cleanly: domain routing switches from wildcard `localtest.me` to production FQDNs on `sslip.io` with Let's Encrypt TLS, resource limits are calibrated to 250m CPU and 256Mi RAM to run stably on micro-instances, and storage classes map to cloud block storage.*
+>
+> *Here on the terminal, `helm history` shows our deployed releases. Let's demonstrate how our system handles a bad deployment in production.*
+>
+> *I'll trigger an upgrade using a broken image tag: `dev-broken-build`.*
+>
+> *Looking at `kubectl get pods`, Kubernetes starts the new container, which immediately fails its pull check. Because our deployment uses a `RollingUpdate` strategy with `maxSurge` and dual `/healthz` readiness probes, Kubernetes refuses to kill our existing healthy pod. If I refresh our dashboard right now, the platform is still 100% online with zero customer downtime.*
+>
+> *To recover, we run a single command: `helm rollback mcp-gateway 2`.*
+>
+> *Helm automatically creates a new revision referencing our known-good state, cleans up the failed pod, and restores 100% cluster health in seconds.*
+>
+> *Everything we demonstrated today is documented in detail in our repository's `README.md`, `docs/DEPLOYMENT.md`, `docs/threat-model.md`, and `docs/system-design-and-tradeoffs.md`. Thank you very much!"*
+
+---
+
+## 4. Emergency Troubleshooting & Re-Run Commands
+
+If you make a mistake while recording and want to reset quickly without restarting Docker:
+
+* **Reset Alice's test product in WooCommerce**:
+  Log into `http://wordpress.local:8080/wp-admin/`, go to **Products**, hover over *Mechanical Keyboard*, and click **Trash**.
+* **Reset Bob's revoked API key**:
+  In `http://app.localtest.me:8080/api-keys`, click **Create Key**, select **Bob**, copy the key.
+* **Ensure all pods are running**:
   ```bash
   docker start k3d-urumi-server-0 k3d-urumi-agent-0 k3d-urumi-serverlb
-  ```
-* Verify pod status:
-  ```bash
   kubectl get pods -A
   ```
-
----
-
-## 2. Comprehensive Demonstration Timeline & Verbatim Script
-
-```
-+-------------------------------------------------------------------------------------------------------+
-| TIMELINE OVERVIEW                                                                                     |
-| Act 1 (0:00 - 1:15) : System Architecture, Topology & Security Boundaries                             |
-| Act 2 (1:15 - 2:15) : DoD 1 — Storefront Checkout & Order Verification                               |
-| Act 3 (2:15 - 3:45) : DoD 2 — Chat Agent as User A (Admin Alice): Product Creation & Order Query     |
-| Act 4 (3:45 - 5:15) : DoD 3 — External Client as User B (Member Bob): RBAC & Cross-Server Tool Calls  |
-| Act 5 (5:15 - 6:45) : DoD 4 — Team Control, Failure Isolation & Audit Logging                         |
-| Act 6 (6:45 - 8:15) : Production Story, Helm Upgrades & Zero-Downtime Rollback                         |
-+-------------------------------------------------------------------------------------------------------+
-```
-
----
-
-### Act 1: System Design, Kubernetes Topology & Network Isolation
-* **Time**: `0:00 - 1:30`
-* **On Screen**: 
-  1. Terminal running:
-     ```bash
-     kubectl get pods,pvc,ingress -A
-     ```
-  2. Then run:
-     ```bash
-     kubectl get networkpolicy -A
-     ```
-  Show the clean multi-namespace segregation, PVCs, Ingress routes, and zero-trust NetworkPolicies.
-
-#### Verbatim Voiceover:
-> *"Hello! In this demo, I will walk you through the Model Context Protocol (MCP) Enterprise Gateway and Control Plane that I built on Kubernetes.
->
-> *Before jumping into the live user flows, let's look at the system architecture and Kubernetes topology. Everything is containerized and strictly isolated across three namespaces:
->
-> 1. *`urumi-platform`: Hosts our core control plane. It includes:
->    - The **Gateway**: Built in TypeScript with **Hono**, responsible for terminating MCP connections over Server-Sent Events, dynamic tool catalog aggregation, role-based tool authorization, and write-ahead audit logging.
->    - The **Dashboard**: Built in **Next.js 15**, providing administrative controls, API key management, live audit log viewing, and dynamic upstream server lifecycle management.
->    - **PostgreSQL 16**: Backed by a PersistentVolumeClaim, storing user records, hashed API keys, encrypted upstream credentials, and an immutable audit ledger.
->
-> 2. *`urumi-store`: Runs an independent WooCommerce e-commerce stack with a dedicated MariaDB database, persistent storage for WordPress uploads, and our custom **`woo-mcp`** adapter, which translates MCP tool calls into WooCommerce REST API calls authenticated via OAuth 1.0a HMAC-SHA256.
->
-> 3. *`mcp-upstreams`: Contains our mock third-party partner services, including Fulfillment MCP and Supplier MCP.
->
-> *From a security and networking standpoint:
-> - **Public vs. Internal**: Only the Traefik Ingress is public (`app.localtest.me` for the control plane and `wordpress.local` for the store). Upstream MCP servers and databases run strictly as internal ClusterIP services and cannot be addressed from outside the cluster.
-> - **Zero-Trust NetworkPolicies**: As you see here, cross-namespace `NetworkPolicy` objects block direct pod-to-pod lateral communication. Upstreams cannot reach each other or touch the store database directly.
-> - **Credentials & Secrets**: Client API keys are stored as SHA-256 cryptographic digests with server-side pepper. Upstream credentials are encrypted at rest in PostgreSQL and only decrypted in-memory during active sessions. Sensitive environment variables are injected natively via Kubernetes Secrets.
-> - **Resource Hardening**: Every container specifies strict CPU and memory requests and limits, with dual `/healthz` readiness and liveness probes guaranteeing zero-downtime rolling updates."*
-
----
-
-### Act 2: Definition of Done — Baseline Storefront Order
-* **Time**: `1:15 - 2:15`
-* **On Screen**: 
-  1. Open storefront at `http://wordpress.local:8080/`.
-  2. Select an existing product, add to cart, proceed to checkout.
-  3. Select **Cash on Delivery** and place order.
-  4. Switch to WooCommerce Admin (`http://wordpress.local:8080/wp-admin/` -> **WooCommerce > Orders**). Refresh to show the order.
-
-#### Verbatim Voiceover:
-> *"To begin our Definition-of-Done validation, let's verify the underlying WooCommerce storefront.*
->
-> *Here on the store front at `wordpress.local:8080`, I'll add an item to the shopping cart, proceed to checkout, select Cash on Delivery, and place the order.*
->
-> *Now, switching to the WooCommerce administrative panel, we refresh the Orders page, and we can see our fresh order registered in the database. The store data plane is operating normally."*
-
----
-
-### Act 3: Definition of Done — Chat Agent as User A (Admin Alice)
-* **Time**: `2:15 - 3:45`
-* **On Screen**:
-  1. Open Dashboard Login (`http://app.localtest.me:8080/login`).
-  2. Click **Login as Admin (Alice)**.
-  3. Open **Chat** (`http://app.localtest.me:8080/chat`).
-  4. Prompt 1:
-     ```text
-     Create a new product named "Mechanical Keyboard" with regular price "99"
-     ```
-  5. Show agent executing `woocommerce__create_product` and returning product details.
-  6. Switch to storefront (`http://wordpress.local:8080/`). Refresh and show *Mechanical Keyboard* ($99).
-  7. Add *Mechanical Keyboard* to cart and place an order on the storefront.
-  8. Return to Dashboard Chat. Prompt 2:
-     ```text
-     What orders came in today?
-     ```
-  9. Show agent calling `woocommerce__list_orders` and returning the order containing the Mechanical Keyboard.
-
-#### Verbatim Voiceover:
-> *"Now let's test our AI Chat Agent acting as User A—our administrator, Alice.*
->
-> *I log in as Alice with one click and open the Chat Agent. The agent runs in-process with the gateway using Gemini, dynamically executing MCP tools through the gateway pipeline as the authenticated user.*
->
-> *I'll ask: 'Create a new product named Mechanical Keyboard with regular price 99'.*
->
-> *Notice what happened under the hood: The agent reasoned over the available schema, recognized the mutating tool `woocommerce__create_product`, verified Alice's admin permissions, and executed the call.*
->
-> *Let's verify on the storefront: I refresh the catalog, and here is our brand-new 'Mechanical Keyboard' for $99!*
->
-> *I'll quickly place an order for this keyboard directly on the storefront... Order placed.*
->
-> *Now back in the chat agent, I ask: 'What orders came in today?'*
->
-> *The agent invokes `woocommerce__list_orders`, parses the JSON response, and displays our order details cleanly."*
-
----
-
-### Act 4: Definition of Done — External MCP Client as User B (Member Bob)
-* **Time**: `3:45 - 5:15`
-* **On Screen**:
-  1. Open **API Keys** page (`http://app.localtest.me:8080/api-keys`). Copy Bob's API key.
-  2. Open MCP Inspector (`npx @modelcontextprotocol/inspector`).
-  3. Connect to URL: `http://app.localtest.me:8080/mcp` with header `Authorization: Bearer <BOB_KEY>`.
-  4. Click **List Tools**:
-     * Point out that Bob only sees read tools (`woocommerce__list_orders`, `fulfillment__track_shipment`).
-     * **Highlight Differentiator 2 (RBAC)**: Mutating tools (`create_product`, `update_order`, etc.) are hidden from Bob!
-  5. In MCP Inspector, invoke `woocommerce__list_orders` with `{ "limit": 5 }`. Show orders returned.
-  6. Demonstrate cross-server tool execution:
-     * Execute `fulfillment__track_shipment` with `{ "order_id": 1 }` or `{ "tracking_number": "TRK-001" }`.
-     * Show that the client invokes tools across **two distinct upstream MCP servers** (`woocommerce` and `fulfillment`) through a single unified gateway endpoint.
-
-#### Verbatim Voiceover:
-> *"Next, we test connecting an external MCP client as User B—our team member, Bob.*
->
-> *I copy Bob's API key from the dashboard and connect via the official Model Context Protocol Inspector to our single endpoint: `http://app.localtest.me:8080/mcp`.*
->
-> *Notice this critical security differentiator: When Bob requests the tool catalog, our gateway policy engine filters out all mutating tools. Bob can only see read tools like `list_orders` and `track_shipment`. If Bob attempts to execute `create_product` directly via JSON-RPC, the gateway rejects it with HTTP 403 Forbidden.*
->
-> *Bob invokes `woocommerce__list_orders`, and the orders are returned instantly.
-
-> *Here is how a tool call travels under the hood: The client's JSON-RPC packet hits the Traefik Ingress, routes to the gateway where Bob's bearer token is authenticated against PostgreSQL in constant time. The gateway resolves the deterministic `woocommerce__` prefix to prevent tool namespace collisions, attaches the upstream credential in-memory, and executes the call against `woo-mcp` with an explicit 15-second AbortSignal timeout. The result is written to our audit table and streamed back to Bob via SSE.*
->
-> *Now, we run an operation spanning two distinct upstream servers: we query an order from WooCommerce, and then pass its details to `fulfillment__track_shipment` on our Fulfillment server. The client communicates with only one gateway, while the gateway transparently routes between independent upstream pods."*
-
----
-
-### Act 5: Team Governance, Resilience & Failure Isolation
-* **Time**: `5:15 - 6:45`
-* **On Screen**:
-  1. **Revoke User B's Key**:
-     * In Dashboard **API Keys**, click **Revoke** on Bob's key.
-     * In MCP Inspector, re-run any tool call. Show **HTTP 401 Unauthorized** error.
-  2. **Disable an Upstream Server**:
-     * In Dashboard **Servers** (`http://app.localtest.me:8080/servers`), toggle **Supplier MCP** to Disabled.
-     * In MCP Inspector / Chat -> refresh tools -> `supplier__...` tools disappear immediately.
-  3. **Kill an Upstream Pod (Simulate Failure)**:
-     * In terminal, run:
-       ```bash
-       kubectl scale deployment fulfillment-mcp -n mcp-upstreams --replicas=0
-       ```
-     * Wait 10 seconds. Refresh **Servers** page -> show `fulfillment-mcp` is marked **Unreachable (Connection Refused)**.
-     * Show that **WooCommerce is still 100% online and healthy** (fault containment).
-     * In terminal, restore the pod:
-       ```bash
-       kubectl scale deployment fulfillment-mcp -n mcp-upstreams --replicas=1
-       ```
-     * Refresh **Servers** page -> status returns to **Connected**.
-  4. **Audit Log Inspection**:
-     * Open **Audit Logs** (`http://app.localtest.me:8080/audit`).
-     * Show that every call (Alice's product creation, Bob's order queries, and blocked calls) appears with timestamp, latency, status, and correct user attribution.
-
-#### Verbatim Voiceover:
-> *"Now let's examine team governance, active health probing, and blast-radius containment.*
->
-> *First, key revocation: In the dashboard, I revoke Bob's API key. Returning to the MCP client, the very next call is instantly rejected with HTTP 401 Unauthorized.*
->
-> *Second, dynamic server management: I navigate to our Servers page and toggle Supplier MCP to Disabled. The gateway unloads its SSE connection, and its tools instantly disappear from external clients without requiring a gateway restart.
-
-> *What if an admin registers a malicious or compromised MCP server? The gateway hardens against prompt injection: tool descriptions are length-capped at 1,024 characters, control characters are stripped, tool outputs are wrapped in strict `<tool_output>` XML boundary tags, and NetworkPolicies block egress to cloud metadata endpoints like `169.254.169.254`.*
->
-> *Third, dead upstream isolation: What happens if an upstream crashes in production? Let's simulate a crash by scaling `fulfillment-mcp` down to zero replicas.*
->
-> *Our gateway runs an active background health probe every 10 seconds. Within two probe intervals, the dashboard flags Fulfillment as 'Unreachable'. Most importantly, this failure is completely contained: WooCommerce and Supplier tools remain 100% operational, and the gateway does not drop client connections.*
->
-> *When we restore the pod, the probe detects recovery and automatically re-registers the tools.*
->
-> *Finally, let's look at the Audit Log. Every single action we just performed—the product creation by Alice, the order lookups by Bob, and the blocked unauthorized attempts—is recorded with precise latencies, parameter payloads, and immutable user attribution."*
-
----
-
-### Act 6: Production Story, Helm Upgrades & Rollback
-* **Time**: `6:45 - 8:15`
-* **On Screen**:
-  1. Open terminal running:
-     ```bash
-     helm history mcp-gateway -n urumi-platform
-     ```
-     Show Revision 1 and Revision 2.
-  2. Execute a broken upgrade:
-     ```bash
-     helm upgrade mcp-gateway deploy/charts/mcp-gateway \
-       -f deploy/charts/mcp-gateway/values-local.yaml \
-       --set gateway.image.tag="dev-broken-build" \
-       -n urumi-platform
-     ```
-  3. Show pod status:
-     ```bash
-     kubectl get pods -n urumi-platform
-     ```
-     Show new pod in `ImagePullBackOff`, while **old pod stays 1/1 Running**.
-  4. In browser, refresh `http://app.localtest.me:8080/overview` to prove zero downtime.
-  5. Roll back cleanly:
-     ```bash
-     helm rollback mcp-gateway 2 -n urumi-platform
-     ```
-  6. Verify clean recovery:
-     ```bash
-     helm history mcp-gateway -n urumi-platform
-     kubectl get pods -n urumi-platform
-     ```
-     Show Revision 3/4 created and all pods healthy.
-
-#### Verbatim Voiceover:
-> *"To conclude, let's look at our production deployment and upgrade story.*
->
-> *The entire system is packaged as a unified Helm chart with environment separation via `values-local.yaml` for local development and `values-prod.yaml` for production cloud VPS deployment.
-
-> *Between local and VPS, Helm parameterizes everything: domain routing switches from wildcard `localtest.me` to production FQDNs on `sslip.io` with Let's Encrypt TLS, resource limits are hardened to 250m CPU and 256Mi RAM to prevent OOM on micro-instances, and storage classes map to cloud block volumes.*
->
-> *Here on the terminal, `helm history` shows our deployed revisions. Let's demonstrate zero-downtime rolling upgrades and automated failure defense.*
->
-> *I execute an upgrade with a broken image tag: `dev-broken-build`.*
->
-> *Watch Kubernetes: it spins up a new pod, which immediately fails its pull check. Because our deployment uses `RollingUpdate` with `maxSurge` and dual `/healthz` readiness probes, Kubernetes refuses to kill the existing working pod. Our dashboard and gateway on `app.localtest.me` remain 100% online with zero customer downtime.*
->
-> *Now, we execute a one-command rollback: `helm rollback mcp-gateway 2`.*
->
-> *Helm creates a new revision referencing our known-good state, cleans up the failed pod, and restores 100% cluster health in seconds.*
->
-> *Everything shown today is documented in detail in `README.md`, `docs/DEPLOYMENT.md`, `docs/threat-model.md`, and `docs/system-design-and-tradeoffs.md`. Thank you!"*
-
----
-
-## 3. Mandatory Architectural Answers Reference
-
-Use these talking points if asked about specific design details in the interview:
-
-### MCP Internals
-* **Tool Name Collision Handling**: All exposed tools use deterministic `<server-slug>__<original_name>` namespacing with double underscore invariants.
-* **Timeouts**: Every tool execution is bounded by an explicit `AbortSignal.timeout(15000)` (15 seconds) to prevent hanging upstreams from leaking sockets.
-* **Dead Upstream Detection**: 10-second active health probes mark failing upstreams as `Unreachable`, evicting their tools from discovery while keeping the gateway online.
-
-### Security Posture
-* **Credential Storage**: Raw API keys are never stored; only HMAC-SHA256 digests with server pepper. Upstream credentials (OAuth 1.0a keys) are stored encrypted in PostgreSQL and decrypted in memory only at call time.
-* **Malicious Upstream Mitigation**: Tool descriptions are sanitized, stripped of control characters, and capped at 1,024 characters. Outputs are enclosed in `<tool_output>` tags to prevent LLM prompt injection.
-* **Role Permissions**: Mutating tools require the `admin` role. Members receive HTTP 403 on direct execution attempts, with every violation written to the immutable audit log.
-
-### Production vs. Local
-* **Ingress**: Wildcard `app.localtest.me` locally vs. FQDN / `sslip.io` with Let's Encrypt TLS in production.
-* **Resources**: Conservative 250m CPU / 256Mi RAM limits in production to operate stably on constrained VPS instances.
-* **Storage**: Local path provisioners locally vs. cloud block storage with automated database dump CronJobs in production.
+* **Restore Helm to clean Revision 2**:
+  ```bash
+  helm rollback mcp-gateway 2 -n urumi-platform
+  ```
