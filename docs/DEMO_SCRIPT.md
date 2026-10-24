@@ -59,22 +59,37 @@ Before pressing **Record**, prepare the following browser tabs and terminal wind
 ---
 
 ### Act 1: System Design, Kubernetes Topology & Network Isolation
-* **Time**: `0:00 - 1:15`
-* **On Screen**: Terminal running `kubectl get pods -A` and `kubectl get ingress -A`. Show clean multi-namespace segregation.
+* **Time**: `0:00 - 1:30`
+* **On Screen**: 
+  1. Terminal running:
+     ```bash
+     kubectl get pods,pvc,ingress -A
+     ```
+  2. Then run:
+     ```bash
+     kubectl get networkpolicy -A
+     ```
+  Show the clean multi-namespace segregation, PVCs, Ingress routes, and zero-trust NetworkPolicies.
 
 #### Verbatim Voiceover:
-> *"Hello! In this demo, I will walk you through the Model Context Protocol (MCP) Enterprise Gateway and Control Plane that I built on Kubernetes.*
+> *"Hello! In this demo, I will walk you through the Model Context Protocol (MCP) Enterprise Gateway and Control Plane that I built on Kubernetes.
 >
-> *Before jumping into the live user flows, let's look at the underlying Kubernetes topology. Everything is containerized and strictly isolated across three namespaces:*
-> 1. *`urumi-platform`: Hosts our core control plane—the Hono MCP Reverse Gateway, the Next.js 15 administrative dashboard, and a PostgreSQL 16 database storing encrypted credentials, RBAC rules, and tamper-evident audit logs.*
-> 2. *`urumi-store`: Runs an independent WooCommerce e-commerce stack with MariaDB and a dedicated WooCommerce MCP adapter.*
-> 3. *`mcp-upstreams`: Contains our partner services, including Fulfillment MCP and Supplier MCP.*
+> *Before jumping into the live user flows, let's look at the system architecture and Kubernetes topology. Everything is containerized and strictly isolated across three namespaces:
 >
-> *For security, only the Traefik Ingress is exposed to public traffic. Upstream MCP servers and databases run as internal ClusterIP services and cannot be reached from outside the cluster. Kubernetes NetworkPolicies enforce default-deny ingress rules so upstreams cannot talk to each other or access the store database directly.*
+> 1. *`urumi-platform`: Hosts our core control plane. It includes:
+>    - The **Gateway**: Built in TypeScript with **Hono**, responsible for terminating MCP connections over Server-Sent Events, dynamic tool catalog aggregation, role-based tool authorization, and write-ahead audit logging.
+>    - The **Dashboard**: Built in **Next.js 15**, providing administrative controls, API key management, live audit log viewing, and dynamic upstream server lifecycle management.
+>    - **PostgreSQL 16**: Backed by a PersistentVolumeClaim, storing user records, hashed API keys, encrypted upstream credentials, and an immutable audit ledger.
 >
-> *Client API keys are stored as SHA-256 cryptographic digests with server-side pepper, while upstream credentials like WooCommerce OAuth keys are stored encrypted in PostgreSQL and decrypted in memory only during active calls.
-
-> *All workloads define strict CPU and memory requests and limits, with dual `/healthz` readiness and liveness probes ensuring zero-downtime rolling updates."*
+> 2. *`urumi-store`: Runs an independent WooCommerce e-commerce stack with a dedicated MariaDB database, persistent storage for WordPress uploads, and our custom **`woo-mcp`** adapter, which translates MCP tool calls into WooCommerce REST API calls authenticated via OAuth 1.0a HMAC-SHA256.
+>
+> 3. *`mcp-upstreams`: Contains our mock third-party partner services, including Fulfillment MCP and Supplier MCP.
+>
+> *From a security and networking standpoint:
+> - **Public vs. Internal**: Only the Traefik Ingress is public (`app.localtest.me` for the control plane and `wordpress.local` for the store). Upstream MCP servers and databases run strictly as internal ClusterIP services and cannot be addressed from outside the cluster.
+> - **Zero-Trust NetworkPolicies**: As you see here, cross-namespace `NetworkPolicy` objects block direct pod-to-pod lateral communication. Upstreams cannot reach each other or touch the store database directly.
+> - **Credentials & Secrets**: Client API keys are stored as SHA-256 cryptographic digests with server-side pepper. Upstream credentials are encrypted at rest in PostgreSQL and only decrypted in-memory during active sessions. Sensitive environment variables are injected natively via Kubernetes Secrets.
+> - **Resource Hardening**: Every container specifies strict CPU and memory requests and limits, with dual `/healthz` readiness and liveness probes guaranteeing zero-downtime rolling updates."*
 
 ---
 
